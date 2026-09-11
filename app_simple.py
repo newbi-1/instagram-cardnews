@@ -69,24 +69,21 @@ def _chip_index(options: list[str], value: str, fallback: int = 0) -> int:
     return fallback
 
 
-def _load_ig_from_query() -> None:
-    """Optional: ?ig_uid= for non-secret convenience only (token never in URL)."""
-    try:
-        uid = st.query_params.get("ig_uid", "")
-        if uid and not ss.ig_user_id:
-            ss.ig_user_id = str(uid)
-    except Exception:
-        pass
+def _mask_secret(value: str, keep: int = 4) -> str:
+    """Show a short prefix + **** only — never the full token/id."""
+    v = (value or "").strip()
+    if not v:
+        return ""
+    prefix = v[:keep] if len(v) >= keep else v[: max(1, len(v) // 2)]
+    return f"{prefix}…****"
 
 
-def _persist_ig_uid_to_query() -> None:
-    """Keep account number in URL for refresh convenience; never put token in URL."""
+def _clear_ig_from_url() -> None:
+    """Never leave token or account id in query_params / URL."""
     try:
-        uid = (ss.ig_user_id or "").strip()
-        if uid:
-            st.query_params["ig_uid"] = uid
-        elif "ig_uid" in st.query_params:
-            del st.query_params["ig_uid"]
+        for key in ("ig_uid", "ig_token", "token", "access_token"):
+            if key in st.query_params:
+                del st.query_params[key]
     except Exception:
         pass
 
@@ -100,10 +97,21 @@ def _ig_connected() -> bool:
 
 def _ig_status_label() -> str:
     if _ig_connected():
-        _, u = resolve_ig_credentials(ss.ig_token, ss.ig_user_id)
-        masked = ("…" + u[-4:]) if len(u) >= 4 else "연결됨"
-        return f"✅ 연결됨 {masked}"
+        tok, uid = resolve_ig_credentials(ss.ig_token, ss.ig_user_id)
+        return (
+            f"연결됨 ✅ · {_mask_secret(tok)} / {_mask_secret(uid)}"
+        )
     return "⚪ 아직 연결 안 됨"
+
+
+def _clear_ig_session() -> None:
+    """Disconnect: wipe IG credentials from session and widget keys."""
+    ss.ig_token = ""
+    ss.ig_user_id = ""
+    for k in ("settings_ig_token", "settings_ig_user_id"):
+        if k in ss:
+            del ss[k]
+    _clear_ig_from_url()
 
 
 def _render_how_to_get_keys() -> None:
@@ -122,7 +130,8 @@ def _render_how_to_get_keys() -> None:
 6. **계정 번호**(연결 키 2, 숫자)를 확인·복사합니다.
 7. 이 앱 **설정**에 붙여 넣고 **저장**합니다. 먼저 **연습**으로 확인해 보세요.
 
-> 키는 비밀번호처럼 다루세요. 카톡·깃허브·압축 파일에 넣지 마세요.
+> 키는 비밀번호처럼 다루세요. **저장 후에는 화면에 숨겨집니다.**  
+> 카톡·공개 채팅·깃허브·압축 파일에 키를 붙여 넣지 마세요.
 """
     )
 
@@ -137,28 +146,43 @@ def _render_settings_panel() -> None:
             ss.buyer_user = ""
             ss.last_paths = []
             ss.last_meta = {}
+            _clear_ig_session()
             st.rerun()
     st.caption(_ig_status_label())
 
     st.markdown("#### 1. 인스타그램 연결")
     st.markdown(
         "인스타에 **직접 올리려면** 아래 두 칸만 채우면 됩니다. "
-        "설치·설정 파일(`.env`)은 **필요 없어요.**"
+        "설치·설정 파일(`.env`)은 **필요 없어요.** "
+        "**저장 후에는 키가 숨겨지고** 연결됨 ✅ / 마스킹만 보여요."
     )
 
+    connected = _ig_connected()
+    token_ph = (
+        "저장됨(숨김) · 바꾸려면 새 키 입력"
+        if connected
+        else "판매자에게 받은 긴 글 붙여 넣기"
+    )
+    uid_ph = (
+        "저장됨(숨김) · 바꾸려면 새 번호 입력"
+        if connected
+        else "판매자에게 받은 숫자"
+    )
+    # Never echo full token/user id back into widgets after save
     token_in = st.text_input(
         "연결 키1 (토큰)",
-        value=ss.ig_token,
+        value="",
         type="password",
-        placeholder="판매자에게 받은 긴 글 붙여 넣기",
-        help="비밀번호처럼 긴 연결 글입니다.",
+        placeholder=token_ph,
+        help="비밀번호처럼 긴 연결 글입니다. 저장 후 전체 값은 다시 보이지 않습니다.",
         key="settings_ig_token",
     )
     uid_in = st.text_input(
         "연결 키2 (계정번호)",
-        value=ss.ig_user_id,
-        placeholder="판매자에게 받은 숫자",
-        help="숫자로 된 계정 번호입니다.",
+        value="",
+        type="password",
+        placeholder=uid_ph,
+        help="숫자로 된 계정 번호입니다. 저장 후 전체 값은 다시 보이지 않습니다.",
         key="settings_ig_user_id",
     )
 
@@ -168,23 +192,27 @@ def _render_settings_panel() -> None:
     c_save, c_clear = st.columns(2)
     with c_save:
         if st.button("저장·연결", type="primary", use_container_width=True, key="btn_ig_save"):
-            ss.ig_token = (token_in or "").strip()
-            ss.ig_user_id = (uid_in or "").strip()
-            _persist_ig_uid_to_query()
+            new_tok = (token_in or "").strip()
+            new_uid = (uid_in or "").strip()
+            if new_tok:
+                ss.ig_token = new_tok
+            if new_uid:
+                ss.ig_user_id = new_uid
+            _clear_ig_from_url()
+            # Drop widget values so full secrets are not re-echoed
+            for k in ("settings_ig_token", "settings_ig_user_id"):
+                if k in ss:
+                    del ss[k]
             if _ig_connected():
-                st.success("연결됐어요. 이제 카드를 만들고 올릴 수 있어요.")
+                st.success(_ig_status_label())
+                st.caption("전체 키는 숨겼어요. 공개 채팅에 붙여 넣지 마세요.")
             else:
                 st.warning("연결 키1·키2를 모두 넣어 주세요.")
+            st.rerun()
     with c_clear:
         if st.button("연결 끊기", use_container_width=True, key="btn_ig_clear"):
-            ss.ig_token = ""
-            ss.ig_user_id = ""
-            try:
-                if "ig_uid" in st.query_params:
-                    del st.query_params["ig_uid"]
-            except Exception:
-                pass
-            st.info("연결을 해제했어요.")
+            _clear_ig_session()
+            st.info("연결을 해제했어요. 세션의 키도 지웠어요.")
             st.rerun()
 
     if _ig_connected():
@@ -233,7 +261,7 @@ def _render_settings_panel() -> None:
     ss.always_include = always_in if always_in is not None else ss.always_include
 
     st.divider()
-    st.caption("이 브라우저 창을 쓰는 동안만 기억해요. 다른 사람과 키를 공유하지 마세요.")
+    st.caption("이 브라우저 창을 쓰는 동안만 기억해요. 키는 저장 후 숨겨져요. 공개 채팅에 붙여 넣지 마세요.")
 
 
 def _render_help_panel() -> None:
@@ -272,13 +300,16 @@ def _render_help_panel() -> None:
 **구매자:** 판매자에게 **연결 키1(토큰)** / **연결 키2(계정번호)** 를 받아  
 왼쪽 **설정**에 붙여 넣고 **저장·연결**만 하면 됩니다.
 
+저장 후에는 전체 키가 **숨겨지고**, **연결됨 ✅** 와 `IGAA…****` / `1784…****` 같은 마스킹만 보여요.  
+키를 **공개 채팅·카톡·깃허브**에 붙여 넣지 마세요.
+
 """
         )
         _render_how_to_get_keys()
         st.markdown(
             """
 **연결 상태**는 설정 맨 위에 ✅ / ⚪ 로 보여요.  
-키를 바꿔야 하면 다시 붙여 넣고 저장하거나, **연결 끊기** 후 새로 넣으세요.
+키를 바꿔야 하면 설정에 **새 키만** 다시 입력해 저장하거나, **연결 끊기** 후 새로 넣으세요.
 """
         )
 
@@ -314,13 +345,19 @@ A. 연습은 서버에 올리기만 시뮬레이션하고 인스타에는 안 �
 A. 판매자에게 키 재발급을 요청한 뒤 설정에 다시 저장하세요.  
 테스터 수락·비즈니스/크리에이터 계정 여부도 함께 확인해 달라고 하세요.
 
+**Q. 저장한 키가 화면에 안 보여요?**  
+A. 정상입니다. 저장 후에는 마스킹만 보여 안전을 지킵니다. 바꿀 때만 새 키를 다시 입력하세요.
+
+**Q. 키를 어디에 보내면 안 되나요?**  
+A. 공개 채팅·카톡 단체방·깃허브·공개 이슈에는 절대 붙이지 마세요. 판매자↔구매자 안전 채널만 쓰세요.
+
 **Q. 문제가 나면?**  
-A. 화면 메시지를 캡처해 판매자에게 보내 주세요.
+A. 화면 메시지를 캡처해 판매자에게 보내 주세요. (키 전체는 캡처에 넣지 마세요)
 """
         )
 
 
-_load_ig_from_query()
+_clear_ig_from_url()
 
 
 def _render_buyer_login() -> None:

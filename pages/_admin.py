@@ -221,13 +221,23 @@ if submitted:
     else:
         st.error(msg)
     if ok:
-        block = secrets_toml_for_new_buyer(new_id.strip(), (new_pw or "").strip(), new_note or "")
-        st.markdown("**Cloud Secrets에 추가할 블록**")
+        plain = (new_pw or "").strip()
+        st.warning(
+            "새 비밀번호는 **지금 한 번만** 표시됩니다. 복사해 구매자에게 안전하게 전달하세요. "
+            "공개 채팅·깃에는 넣지 마세요."
+        )
+        st.code(plain, language=None)
+        # Secrets paste uses placeholders — never live password from session
+        block = secrets_toml_for_new_buyer(
+            new_id.strip(), note=new_note or "", use_placeholder=True
+        )
+        st.markdown("**Cloud Secrets에 추가할 블록** (비밀번호는 직접 채워 넣기)")
         st.code(block, language="toml")
         ss["_last_secrets_snippet"] = block
 
 st.divider()
 st.subheader("구매자 목록")
+st.caption("표시: 아이디 · 사용 여부 · 메모만 (비밀번호·해시 비표시)")
 
 rows = list_buyers_rows()
 if not rows:
@@ -235,14 +245,18 @@ if not rows:
 else:
     for row in rows:
         u = row["username"]
+        enabled = row["enabled"]
+        note = row["note"] or ""
+        # List: id / enabled / note only — never password or hash
         with st.expander(
-            f"{'✅' if row['enabled'] else '⛔'} {u} · {row['source']}"
-            + (f" · {row['note']}" if row["note"] else ""),
+            f"{'✅' if enabled else '⛔'} {u}"
+            + (f" · {note}" if note else ""),
             expanded=False,
         ):
-            st.write(f"메모: {row['note'] or '(없음)'}")
-            st.write(f"출처: {row['source']} · 생성: {row['created_at'] or '—'}")
-            note_in = st.text_input("메모 수정", value=row["note"], key=f"note_{u}")
+            st.write(f"**아이디:** `{u}`")
+            st.write(f"**사용:** {'사용 중' if enabled else '중지'}")
+            st.write(f"**메모:** {note or '(없음)'}")
+            note_in = st.text_input("메모 수정", value=note, key=f"note_{u}")
             if st.button("메모 저장", key=f"save_note_{u}"):
                 ok, msg = update_buyer_note(u, note_in)
                 (st.success if ok else st.error)(msg)
@@ -250,7 +264,7 @@ else:
                     st.rerun()
             cols = st.columns(3)
             with cols[0]:
-                if row["enabled"]:
+                if enabled:
                     if st.button("사용 중지", key=f"dis_{u}", use_container_width=True):
                         ok, msg = set_buyer_enabled(u, False)
                         (st.success if ok else st.error)(msg)
@@ -266,13 +280,25 @@ else:
                 npw = st.text_input("새 비밀번호", type="password", key=f"npw_{u}")
             with cols[2]:
                 if st.button("비밀번호 변경", key=f"rpw_{u}", use_container_width=True):
-                    ok, msg = reset_buyer_password(u, npw or "")
-                    (st.success if ok else st.error)(msg)
+                    plain = (npw or "").strip()
+                    ok, msg = reset_buyer_password(u, plain)
+                    if ok:
+                        st.success(msg)
+                        st.warning(
+                            "새 비밀번호는 **지금 한 번만** 표시됩니다. "
+                            "복사해 저장·전달하세요. 공개 채팅에 넣지 마세요."
+                        )
+                        st.code(plain, language=None)
+                        if f"npw_{u}" in ss:
+                            del ss[f"npw_{u}"]
+                    else:
+                        st.error(msg)
 
 st.divider()
 st.subheader("Secrets 붙여넣기 (Cloud용)")
 st.caption(
     "Streamlit Cloud → App settings → Secrets 에 붙여 넣으세요. "
+    "아래 블록은 **플레이스홀더만** 포함합니다 (실비밀번호·실토큰 없음). "
     "`ADMIN_GATE` / `ADMIN_EMAIL` / `RESEND_API_KEY` 는 구매자에게 알리지 마세요. "
     "`data/buyers.json` 은 깃에 올리지 마세요."
 )

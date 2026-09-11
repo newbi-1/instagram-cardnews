@@ -343,31 +343,28 @@ def reset_buyer_password(username: str, new_password: str) -> tuple[bool, str]:
 
 
 def secrets_toml_block(include_admin_placeholder: bool = True) -> str:
-    """Copy-paste block for Streamlit Cloud secrets (plain passwords)."""
+    """Copy-paste block for Streamlit Cloud secrets (placeholders only)."""
     lines: list[str] = []
     if include_admin_placeholder:
-        # Placeholders only — never dump live ADMIN_EMAIL / secrets into UI or tracked examples
-        admin = "여기에_관리자_비밀번호"
-        gate = get_admin_gate() or "여기에_긴_랜덤_게이트값"
-        lines.append(f'ADMIN_PASSWORD = "{admin}"')
-        lines.append(f'ADMIN_GATE = "{gate}"')
+        # Placeholders only — never dump live ADMIN_* / API keys into UI
+        lines.append('ADMIN_PASSWORD = "여기에_관리자_비밀번호"')
+        lines.append('ADMIN_GATE = "여기에_긴_랜덤_게이트값"')
         lines.append('ADMIN_EMAIL = "seller@example.com"')
         lines.append('RESEND_API_KEY = "re_여기에_키"')
         lines.append('# EMAIL_DEV_MODE = "1"  # 로컬 테스트만 — Cloud에서는 쓰지 마세요')
         lines.append("")
-    # Prefer file records + merged view with plain pwd only when we just created
     store = load_buyers_file()
     file_buyers = store.get("buyers") or {}
     if not file_buyers:
         lines.append("# [buyers.아이디]")
-        lines.append('# password = "구매자비밀번호"')
+        lines.append('# password = "여기에_구매자_비밀번호"')
         lines.append('# note = "메모"')
         lines.append("enabled = true")
         return "\n".join(lines) + "\n"
 
     for u, meta in sorted(file_buyers.items()):
         lines.append(f"[buyers.{u}]")
-        # Cloud secrets usually use plain password — seller sets when pasting
+        # Never embed live passwords — seller fills when pasting to Cloud
         lines.append('password = "여기에_구매자_비밀번호"')
         note = str(meta.get("note") or "").replace('"', '\\"')
         lines.append(f'note = "{note}"')
@@ -377,19 +374,33 @@ def secrets_toml_block(include_admin_placeholder: bool = True) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def secrets_toml_for_new_buyer(username: str, password: str, note: str = "", enabled: bool = True) -> str:
+def secrets_toml_for_new_buyer(
+    username: str,
+    password: str = "",
+    note: str = "",
+    enabled: bool = True,
+    *,
+    use_placeholder: bool = True,
+) -> str:
+    """Secrets paste block. Default password is a placeholder (no live session secrets)."""
     u = username.strip()
     note_esc = (note or "").replace('"', '\\"')
     en = "true" if enabled else "false"
+    pwd = (
+        "여기에_구매자_비밀번호"
+        if use_placeholder
+        else (password or "여기에_구매자_비밀번호")
+    )
     return (
         f"[buyers.{u}]\n"
-        f'password = "{password}"\n'
+        f'password = "{pwd}"\n'
         f'note = "{note_esc}"\n'
         f"enabled = {en}\n"
     )
 
 
 def list_buyers_rows() -> list[dict[str, Any]]:
+    """Admin listing fields only — never include password or password_hash."""
     rows = []
     for u, meta in sorted(merged_buyers().items()):
         rows.append(
