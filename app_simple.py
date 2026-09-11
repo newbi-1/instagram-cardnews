@@ -7,6 +7,7 @@ from pathlib import Path
 import streamlit as st
 from dotenv import load_dotenv
 
+from src.auth import authenticate_buyer, merged_buyers
 from src.auto_copy import apply_caption_template, auto_build_card_inputs
 from src.concepts import (
     CONCEPT_IDS,
@@ -58,6 +59,8 @@ ss.setdefault("always_include", "")
 ss.setdefault("main_topic", "")
 ss.setdefault("last_news_titles", [])
 ss.setdefault("last_source", "")
+ss.setdefault("buyer_user", "")
+ss.setdefault("buyer_authenticated", False)
 
 
 def _chip_index(options: list[str], value: str, fallback: int = 0) -> int:
@@ -127,6 +130,14 @@ def _render_how_to_get_keys() -> None:
 def _render_settings_panel() -> None:
     """사이드바 설정: 인스타 연결 + 고정 캡션·인사·고정 문구."""
     st.markdown("### ⚙️ 설정")
+    if ss.buyer_user:
+        st.caption(f"로그인: **{ss.buyer_user}**")
+        if st.button("로그아웃", use_container_width=True, key="btn_buyer_logout"):
+            ss.buyer_authenticated = False
+            ss.buyer_user = ""
+            ss.last_paths = []
+            ss.last_meta = {}
+            st.rerun()
     st.caption(_ig_status_label())
 
     st.markdown("#### 1. 인스타그램 연결")
@@ -233,17 +244,18 @@ def _render_help_panel() -> None:
     with tab_use:
         st.markdown(
             """
-**한 줄 흐름:** 설정(인스타·고정 캡션) → 콘셉트 → **주제** → **자동으로 카드 만들기** → 미리보기 → (선택) 올리기
+**한 줄 흐름:** 로그인 → 설정(인스타·고정 캡션) → 콘셉트 → **주제** → **자동으로 카드 만들기** → 미리보기 → (선택) 올리기
 
-1. (선택) 왼쪽 **설정**에서 인스타 연결 키를 저장합니다.
-2. 설정에서 **고정 캡션** / **마무리 인사** / **항상 넣을 내용**을 적어 둡니다.
-3. **콘셉트(업종)** 버튼을 고릅니다.
-4. 주제 칩을 고르거나 **메인 주제**를 직접 입력합니다.
-5. **자동으로 카드 만들기**를 누릅니다.
+1. 판매자에게 받은 **아이디·비밀번호**로 로그인합니다.
+2. (선택) 왼쪽 **설정**에서 인스타 연결 키를 저장합니다.
+3. 설정에서 **고정 캡션** / **마무리 인사** / **항상 넣을 내용**을 적어 둡니다.
+4. **콘셉트(업종)** 버튼을 고릅니다.
+5. 주제 칩을 고르거나 **메인 주제**를 직접 입력합니다.
+6. **자동으로 카드 만들기**를 누릅니다.
    - 무료 **구글 뉴스 RSS**에서 관련 최신 소식을 가져옵니다. (API 키 없음)
    - 헤드라인·요약을 카드 문장으로 정리합니다. (유료 AI 불필요)
    - 마무리 인사는 마지막 장에, 고정 캡션은 올릴 때 사용합니다.
-6. 미리보기 확인 후 (선택) **인스타에 올리기**
+7. 미리보기 확인 후 (선택) **인스타에 올리기**
    - **연습** = 실제로 안 올림
    - **실제로 올리기** = 설정에 저장한 키로 게시
 
@@ -273,6 +285,9 @@ def _render_help_panel() -> None:
     with tab_faq:
         st.markdown(
             """
+**Q. 로그인이 뭐예요?**  
+A. 판매자가 만들어 준 아이디·비밀번호로만 쓸 수 있어요. 계정이 없으면 판매자에게 요청하세요.
+
 **Q. 뉴스는 어디서 가져오나요?**  
 A. 무료 **Google News RSS**입니다. API 키·결제가 없습니다. 검색 결과에 따라 품질이 달라질 수 있어요.
 
@@ -306,6 +321,40 @@ A. 화면 메시지를 캡처해 판매자에게 보내 주세요.
 
 
 _load_ig_from_query()
+
+
+def _render_buyer_login() -> None:
+    """구매자 로그인 — 통과 전에는 카드 기능 비표시."""
+    st.title("📰 인스타 카드뉴스")
+    st.caption("판매자에게 받은 아이디·비밀번호로 로그인해 주세요.")
+    with st.form("buyer_login_form"):
+        uid = st.text_input("아이디", placeholder="판매자에게 받은 아이디")
+        pw = st.text_input("비밀번호", type="password", placeholder="비밀번호")
+        ok = st.form_submit_button("로그인", type="primary", use_container_width=True)
+    if ok:
+        good, msg = authenticate_buyer(uid or "", pw or "")
+        if good:
+            ss.buyer_authenticated = True
+            ss.buyer_user = (uid or "").strip()
+            st.success("로그인됐어요.")
+            st.rerun()
+        else:
+            st.error(msg)
+    st.divider()
+    st.caption("계정이 없으면 판매자에게 문의해 주세요.")
+    if not merged_buyers():
+        st.info("아직 등록된 구매자 계정이 없어요. 판매자에게 계정 발급을 요청해 주세요.")
+
+
+def _require_buyer() -> bool:
+    if ss.buyer_authenticated and ss.buyer_user:
+        return True
+    _render_buyer_login()
+    return False
+
+
+if not _require_buyer():
+    st.stop()
 
 # ── 사이드바: 설정 + 도움말 (항상 보임) ───────────────────
 with st.sidebar:

@@ -36,3 +36,8 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Buyer accounts (local persistence — never commit passwords)
+data/buyers.json
+data/buyers.json.tmp
+data/.write_probe

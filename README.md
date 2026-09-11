@@ -1,7 +1,9 @@
 # 인스타그램 카드뉴스 MVP
 
 한국어 인스타그램 카드뉴스 생성 도구입니다. KPI는 **조회수**입니다.  
-구매자는 **웹 링크만** 열고: (선택) 설정에서 인스타 연결·고정 캡션 → 콘셉트 → **주제** → **자동으로 카드 만들기**(무료 구글 뉴스 RSS) → 미리보기 → (선택) 올리기.
+구매자는 **웹 링크만** 열고: **로그인** → (선택) 설정에서 인스타 연결·고정 캡션 → 콘셉트 → **주제** → **자동으로 카드 만들기**(무료 구글 뉴스 RSS) → 미리보기 → (선택) 올리기.
+
+판매자는 숨은 관리자 페이지(`pages/_admin`, 사이드바에 안 보임)에서 구매자 아이디/비밀번호를 만듭니다. `ADMIN_PASSWORD` 필요.
 
 ## 구매자 UX (앱 안)
 
@@ -11,6 +13,18 @@
 - 배경 사진: **무료 이미지 소스** (비용 없음) — 화면 하단 안내
 
 아래 md 안내서는 **판매자·백업용**입니다. 일반 구매자는 앱의 설정·도움말만 보면 됩니다.
+
+
+## 구매자 로그인 / 관리자
+
+| 역할 | 진입 | 인증 |
+|---|---|---|
+| 구매자 | `app_simple.py` (배포 Main file) | 판매자가 만든 아이디/비밀번호 **필수** |
+| 관리자(판매자) | 앱 URL + `/_admin` (사이드바 숨김) | `ADMIN_PASSWORD` (env / secrets) |
+
+- 로컬 계정 저장: `data/buyers.json` (**깃 제외**)
+- Streamlit Cloud: Secrets에 `ADMIN_PASSWORD` + `[buyers.아이디]` 테이블. 관리자 화면이 붙여넣기 블록을 보여 줍니다.
+- 구매자 화면에는 관리자 링크를 넣지 않습니다.
 
 ## 안내서 (판매자 백업)
 
@@ -41,7 +55,7 @@
 
 1. [share.streamlit.io](https://share.streamlit.io)에서 GitHub 연결
 2. Repository `newbi-1/instagram-cardnews`, Branch `main`, Main file `app_simple.py`
-3. (선택) App settings → Secrets 에 `.streamlit/secrets.toml.example` 형식의 `IG_ACCESS_TOKEN` / `IG_USER_ID`
+3. App settings → Secrets 에 `ADMIN_PASSWORD` + 구매자 `[buyers.*]` (+ 선택 `IG_*`). 예: `.streamlit/secrets.toml.example`
 4. Deploy — 구매자에게 나온 **공개 URL**만 전달
 5. 구매자는 **설정** UI에서 연결 키를 붙여 넣으면 Secrets보다 UI 값이 우선합니다
 
