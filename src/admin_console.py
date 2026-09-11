@@ -15,9 +15,12 @@ from src.auth import (
     admin_gate_configured,
     admin_otp_enabled,
     authenticate_admin,
+    clear_login_failures,
     create_buyer,
     file_persistence_available,
     list_buyers_rows,
+    login_rate_limited,
+    record_login_failure,
     reset_buyer_password,
     secrets_toml_block,
     secrets_toml_for_new_buyer,
@@ -93,7 +96,8 @@ def render_admin_console() -> None:
 
 Secrets 필수 (App settings → Secrets):
 - `ADMIN_USERNAME` — 관리자 아이디
-- `ADMIN_PASSWORD` — 관리자 비밀번호 (또는 `ADMIN_PASSWORD_HASH`)
+- `ADMIN_PASSWORD_HASH` — 권장 (`sha256$salt$digest`)
+- `ADMIN_PASSWORD` — 덜 권장(평문 폴백)
 
 선택:
 - `ADMIN_GATE` — 예전 `?gate=` 바로가기 (필수 아님)
@@ -107,18 +111,21 @@ Secrets 필수 (App settings → Secrets):
         if not admin_account_configured():
             st.error(
                 "관리자 계정이 없어요. Secrets에 `ADMIN_USERNAME` 과 "
-                "`ADMIN_PASSWORD`(또는 `ADMIN_PASSWORD_HASH`) 를 넣어 주세요."
+                "`ADMIN_PASSWORD_HASH`(권장) 또는 `ADMIN_PASSWORD`(평문 폴백) 를 넣어 주세요."
             )
             st.code(
                 'ADMIN_USERNAME = "your_admin_id"\n'
-                'ADMIN_PASSWORD = "your_admin_password"\n'
-                '# ADMIN_PASSWORD_HASH = "sha256$salt$digest"  # optional',
+                'ADMIN_PASSWORD_HASH = "sha256$salt$digest"  # 권장\n'
+                '# ADMIN_PASSWORD = "your_admin_password"  # 덜 권장(평문 폴백)',
                 language="toml",
             )
             st.stop()
 
         st.subheader("관리자 로그인")
-        st.caption("아이디와 비밀번호로 입장합니다.")
+        st.caption("아이디와 비밀번호로 입장합니다. (실패 5회 → 잠시 잠금)")
+        _blocked, _bmsg = login_rate_limited(ss, "admin")
+        if _blocked:
+            st.warning(_bmsg)
         with st.form("admin_login_form"):
             admin_id = st.text_input("아이디", key="admin_id_in", autocomplete="username")
             admin_pw = st.text_input(
@@ -131,13 +138,17 @@ Secrets 필수 (App settings → Secrets):
                 "로그인", type="primary", use_container_width=True
             )
         if submitted:
-            if authenticate_admin(admin_id or "", admin_pw or ""):
+            blocked, block_msg = login_rate_limited(ss, "admin")
+            if blocked:
+                st.error(block_msg)
+            elif authenticate_admin(admin_id or "", admin_pw or ""):
+                clear_login_failures(ss, "admin")
                 ss.admin_ok = True
                 ss.admin_flash = "로그인 완료."
                 clear_otp_session(ss)
                 st.rerun()
             else:
-                st.error("아이디 또는 비밀번호가 올바르지 않아요.")
+                st.error(record_login_failure(ss, "admin"))
 
         # Optional email OTP (off by default)
         if admin_otp_enabled():
@@ -191,7 +202,7 @@ Secrets 필수 (App settings → Secrets):
     st.subheader("구매자 계정 만들기")
 
     with st.form("create_buyer_form", clear_on_submit=True):
-        new_id = st.text_input("아이디 (영문·숫자)", placeholder="예: cafe_ahn")
+        new_id = st.text_input("아이디 (영문·숫자)", placeholder="예: buyer1")
         new_pw = st.text_input("비밀번호", type="password", placeholder="4자 이상")
         new_note = st.text_input("메모 (선택)", placeholder="예: 카페 ○○ / 3개월")
         submitted = st.form_submit_button(
@@ -213,9 +224,9 @@ Secrets 필수 (App settings → Secrets):
                 "공개 채팅·깃에는 넣지 마세요."
             )
             st.code(plain, language=None)
-            block = secrets_toml_for_new_buyer(
-                new_id.strip(), note=new_note or "", use_placeholder=True
-            )
+            # Always placeholder passwords in paste block (never live pwd)
+            block = secrets_toml_for_new_buyer(new_id.strip(), note=new_note or "")
+
             st.markdown("**Cloud Secrets에 추가할 블록** (비밀번호는 직접 채워 넣기)")
             st.code(block, language="toml")
             ss["_last_secrets_snippet"] = block
@@ -309,7 +320,7 @@ Secrets 필수 (App settings → Secrets):
     st.caption(
         "Streamlit Cloud → App settings → Secrets 에 붙여 넣으세요. "
         "아래 블록은 **플레이스홀더만** 포함합니다 (실비밀번호·실토큰 없음). "
-        "`ADMIN_USERNAME` / `ADMIN_PASSWORD` 는 구매자에게 알리지 마세요. "
+        "`ADMIN_USERNAME` / `ADMIN_PASSWORD_HASH`(또는 평문 `ADMIN_PASSWORD`) 는 구매자에게 알리지 마세요. "
         "`data/buyers.json` 은 깃에 올리지 마세요."
     )
     st.code(secrets_toml_block(include_admin_placeholder=True), language="toml")
