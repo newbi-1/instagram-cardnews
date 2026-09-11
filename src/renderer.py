@@ -31,7 +31,7 @@ MARGIN = 64
 TEXT_MAX_WIDTH = SIZE - 2 * MARGIN  # 952
 BODY_TEXT_TOP = int(SIZE * 0.62)  # title starts here
 CTA_TEXT_TOP = int(SIZE * 0.56)
-TEXT_BOTTOM = SIZE - 48  # above accent bar; never draw past this
+TEXT_BOTTOM = SIZE - 56  # above inset accent; never draw past this
 TITLE_LINE_GAP = 10
 BODY_LINE_GAP = 8
 TITLE_BODY_GAP = 12
@@ -809,6 +809,24 @@ def _draw_centered_block(
     return y
 
 
+
+def _draw_bottom_accent(
+    draw: ImageDraw.ImageDraw,
+    accent: tuple[int, int, int],
+) -> None:
+    """Small inset accent line near bottom — not full-bleed, so IG crop won't look clipped."""
+    margin = 28  # safe inset from canvas edge
+    line_h = 6
+    line_w = 120
+    y0 = SIZE - margin - line_h
+    x0 = (SIZE - line_w) // 2
+    draw.rounded_rectangle(
+        [x0, y0, x0 + line_w, y0 + line_h],
+        radius=line_h // 2,
+        fill=accent,
+    )
+
+
 def render_slide(slide: dict[str, Any], photo: Image.Image | None = None) -> Image.Image:
     style = slide["style"]
     role = slide.get("role", "body")
@@ -903,7 +921,7 @@ def render_slide(slide: dict[str, Any], photo: Image.Image | None = None) -> Ima
         if slide.get("body"):
             y += 10
             _draw_centered(draw, str(slide["body"]), y, font_meta, (200, 210, 225), shadow=False)
-        draw.rectangle([0, SIZE - 10, SIZE, SIZE], fill=style["accent"])
+        _draw_bottom_accent(draw, style["accent"])
         return img
 
     # Body / CTA — NO glass card. Lower-third, center-aligned (Instagram story).
@@ -988,7 +1006,7 @@ def render_slide(slide: dict[str, Any], photo: Image.Image | None = None) -> Ima
             bottom=TEXT_BOTTOM,
         )
 
-    draw.rectangle([0, SIZE - 8, SIZE, SIZE], fill=style["accent"])
+    _draw_bottom_accent(draw, style["accent"])
     return img
 
 

@@ -1,10 +1,11 @@
 topic=신메뉴
 audience=직장인
 style=style.clean
+concept=cafe
 slides=6
-smoke_long_slide_01.png	keywords=latte,coffee,office,s1f317d2
-smoke_long_slide_02.png	keywords=coffee,cafe,office,s2ac589d
-smoke_long_slide_03.png	keywords=cafe,espresso,office,s33717e3
-smoke_long_slide_04.png	keywords=espresso,cappuccino,office,s465bec4
-smoke_long_slide_05.png	keywords=cappuccino,barista,office,s5cb918a
-smoke_long_slide_06.png	keywords=barista,mug,office,s602c04f
+smoke_long_slide_01.png	keywords=latte,coffee,office,s13ffb77
+smoke_long_slide_02.png	keywords=coffee,cafe,office,s25133f6
+smoke_long_slide_03.png	keywords=cafe,espresso,office,s3999199
+smoke_long_slide_04.png	keywords=espresso,cappuccino,office,s4c4e48b
+smoke_long_slide_05.png	keywords=cappuccino,barista,office,s54197dd
+smoke_long_slide_06.png	keywords=barista,mug,office,s62fc8cf
