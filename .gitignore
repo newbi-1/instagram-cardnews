@@ -23,6 +23,10 @@ clients/*/outputs/*.jpg
 clients/*/outputs/*.jpeg
 !clients/demo/outputs/.gitkeep
 
+# Free photo cache (downloaded at runtime)
+assets/cache/*
+!assets/cache/.gitkeep
+
 # OS / IDE
 .DS_Store
 Thumbs.db

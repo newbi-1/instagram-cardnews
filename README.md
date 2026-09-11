@@ -13,12 +13,20 @@
   4. `streamlit run app.py`
   5. 브라우저에서 UI: 프로필 → 새 카드뉴스 → 미리보기 → 발행 전 확인
 
+## 비주얼 (무료 스택)
+
+- **배경**: 주제·타겟 관련 무료 사진(loremflickr, API 키 불필요) → `assets/cache/`에 캐시. 실패 시 소프트 그라데이션.
+- **폰트**: 번들 Pretendard (OFL) — 부드러운 모던 한글 타이포.
+- **레이아웃**: 커버는 풀블리드 포토 + 다크 그라데이션; 본문/CTA는 블러 포토 위 반투명 글래스 카드.
+- **스타일 차이**: overlay tint + accent 색으로 clean / bold / soft 구분.
+- **AI 이미지(선택)**: 유료 AI/이미지 API는 기본 경로에 없음. 향후 쓰려면 **구매자 본인 API 키(BYOK)** 만 사용.
+
 ## 기능 (MVP)
 
 | 됨 | 아직 아님 |
 |---|---|
 | Pillow로 1080×1080 PNG 생성 | 자동 카피라이팅/LLM |
-| 3종 스타일 (Navy / Violet / Soft Blue) | 비공식 IG 봇 |
+| 포토 배경 + 글래스 카드 3종 스타일 | 비공식 IG 봇 |
 | 프로필 `clients/<name>/` | Kmong 연동 |
 | dry-run 발행 stub (기본 ON) | 로컬 파일 직접 업로드 (Graph는 공개 HTTPS URL 필요) |
 | 토큰 있을 때 Graph API 캐러셀 경로 | 스케줄링·분석 대시보드 |
@@ -40,6 +48,8 @@
 ```
 clients/<profile>/profile.json
 clients/<profile>/outputs/*.png
+assets/fonts/          # Pretendard (OFL)
+assets/cache/          # 사진 캐시 (gitignore)
 ```
 
 샘플 프로필: `clients/demo/`
