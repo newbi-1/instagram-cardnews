@@ -1,9 +1,11 @@
 topic=신메뉴
 audience=직장인
 style=style.clean
-slides=5
+slides=7
 smoke_demo_slide_01.png	keywords=latte,coffee,office,s1f317d2
-smoke_demo_slide_02.png	keywords=coffee,cafe,office,s2c59a77
-smoke_demo_slide_03.png	keywords=cafe,espresso,office,s3545c3c
-smoke_demo_slide_04.png	keywords=espresso,cappuccino,office,s46a3735
-smoke_demo_slide_05.png	keywords=cappuccino,barista,office,s5f2e699
+smoke_demo_slide_02.png	keywords=coffee,cafe,office,s296c484
+smoke_demo_slide_03.png	keywords=cafe,espresso,office,s372f0f2
+smoke_demo_slide_04.png	keywords=espresso,cappuccino,office,s4fbd4d8
+smoke_demo_slide_05.png	keywords=cappuccino,barista,office,s5627d21
+smoke_demo_slide_06.png	keywords=barista,mug,office,s68793d7
+smoke_demo_slide_07.png	keywords=mug,pastry,office,s7bec8e8
