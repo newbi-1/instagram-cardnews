@@ -37,13 +37,8 @@ Thumbs.db
 # Logs
 *.log
 
-# Buyer accounts (local persistence — never commit passwords)
-data/buyers.json
-data/buyers.json.tmp
-data/.write_probe
+# Local runtime data (never commit buyer/settings/schedules JSON or temps)
+data/*.json
+data/*.tmp
+!data/.gitkeep
 
-# Buyer settings & schedules (local / Cloud ephemeral — never commit secrets)
-data/buyer_settings.json
-data/buyer_settings.json.tmp
-data/schedules.json
-data/schedules.json.tmp
