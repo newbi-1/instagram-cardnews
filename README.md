@@ -3,11 +3,11 @@
 한국어 인스타그램 카드뉴스 생성 도구입니다. KPI는 **조회수**입니다.  
 구매자는 **웹 링크만** 열고: **로그인** → 설정(주제·본문·인스타) → **주제 골라 카드 만들기**(무료 구글 뉴스 RSS) → 미리보기 → **테스트 / 즉시 / 예약** 발행.
 
-판매자는 메인 화면 **관리자 로그인** 탭(또는 사이드바 **admin**)에서 아이디/비밀번호로 로그인합니다. 계정은 Streamlit Secrets(`ADMIN_USERNAME` / `ADMIN_PASSWORD`)에만 둡니다. (선택) 예전 `?gate=` 바로가기·이메일 OTP는 기본 off.
+판매자는 메인 화면 **관리자 로그인** 탭(또는 사이드바 **admin**)에서 아이디/비밀번호로 로그인합니다. 계정은 Streamlit Secrets(`ADMIN_USERNAME` + **`ADMIN_PASSWORD_HASH` 권장** / 또는 평문 `ADMIN_PASSWORD`)에만 둡니다. (선택) 예전 `?gate=` 바로가기·이메일 OTP는 기본 off.
 
 ## 구매자 UX (앱 안)
 
-- **설정**(사이드바): 인스타 연결 · **주제 최대 5개**(토글) · **본문 템플릿 최대 5개**(직접 설정 / AI에게 맡기기) · 마무리 인사 · `.env` 불필요
+- **설정**(사이드바): **본인** 인스타 키(실제 발행 필수) · **주제 최대 5개** · **본문 템플릿**(직접 / AI BYOK) · AI 제공자+본인 API 키 · 마무리 인사
 - **본문:** 켜 둔 주제 선택 → **카드 만들기** (Google News RSS, API 키·유료 LLM 없음) · 마지막 장 = **참여유도**
 - **발행:** 테스트발행(한도 미차감) / 즉시발행 / 예약발행 · 하루 기본 **3회**(서울 날짜)
 - **도움말**(사이드바): 사용법 / 인스타 연결 / 자주 묻는 질문 — **앱 안에 내장**
@@ -23,7 +23,7 @@
 | 역할 | 진입 | 인증 |
 |---|---|---|
 | 구매자 | `app_simple.py` (배포 Main file) | 판매자가 만든 아이디/비밀번호 **필수** |
-| 관리자(판매자) | 메인 **관리자 로그인** 탭 또는 사이드바 **admin** (`pages/admin.py`) | Secrets의 `ADMIN_USERNAME` + `ADMIN_PASSWORD` (또는 해시) |
+| 관리자(판매자) | 메인 **관리자 로그인** 탭 또는 사이드바 **admin** (`pages/admin.py`) | Secrets의 `ADMIN_USERNAME` + `ADMIN_PASSWORD_HASH`(권장) 또는 `ADMIN_PASSWORD` |
 
 **관리자 열기 (Cloud)**
 
@@ -42,7 +42,7 @@ https://YOURAPP.streamlit.app/   → 「관리자 로그인」탭 또는 사이�
 - 로컬 계정/한도: `data/buyers.json` (**깃 제외**)
 - 주제·본문 설정: `data/buyer_settings.json` (**깃 제외**)
 - 예약 작업: `data/schedules.json` (**깃 제외**)
-- Streamlit Cloud Secrets: `ADMIN_USERNAME` + `ADMIN_PASSWORD` + `[buyers.아이디]` (+ 선택 `IG_*`). 예: `.streamlit/secrets.toml.example`
+- Streamlit Cloud Secrets: `ADMIN_USERNAME` + `ADMIN_PASSWORD_HASH`(권장) 또는 `ADMIN_PASSWORD` + `[buyers.buyer1]` (+ 선택 `IG_*`). 예: `.streamlit/secrets.toml.example`
 - 실비밀번호·실아이디는 **Secrets / gitignored secrets.toml 에만** — README·커밋·예시에 넣지 마세요.
 
 ## 안내서 (판매자 백업)
@@ -74,11 +74,24 @@ https://YOURAPP.streamlit.app/   → 「관리자 로그인」탭 또는 사이�
 
 1. [share.streamlit.io](https://share.streamlit.io)에서 GitHub 연결
 2. Repository `newbi-1/instagram-cardnews`, Branch `main`, Main file `app_simple.py`
-3. App settings → Secrets 에 `ADMIN_USERNAME` + `ADMIN_PASSWORD` + 구매자 `[buyers.*]` (+ 선택 `IG_*`). 예: `.streamlit/secrets.toml.example`
+3. App settings → Secrets 에 `ADMIN_USERNAME` + `ADMIN_PASSWORD_HASH`(권장) 또는 `ADMIN_PASSWORD` + 구매자 `[buyers.*]` (+ 선택 `IG_*`). 예: `.streamlit/secrets.toml.example`
 4. Deploy — 구매자에게 나온 **공개 URL**만 전달
 5. 구매자는 **설정** UI에서 연결 키를 붙여 넣으면 Secrets보다 UI 값이 우선합니다
 
 `runtime.txt`(Python 3.11), `packages.txt` 포함.
+
+
+
+## 보안 (공개 GitHub + Streamlit Cloud)
+
+- **코드/깃에 두지 말 것:** `.env`, `.streamlit/secrets.toml`, `data/*.json`(구매자·설정·예약), 실비밀번호·실토큰·실메일
+- **Secrets(또는 로컬 gitignored secrets)에만:** `ADMIN_USERNAME`, **`ADMIN_PASSWORD_HASH`(권장)** 또는 평문 `ADMIN_PASSWORD`, 구매자 `[buyers.*]`, (선택) `IG_*` / OTP 키
+- **구매자 비밀번호:** 파일에는 솔트 해시만 저장. 관리자 UI Secrets 붙여넣기 블록은 **항상 플레이스홀더** (실비밀번호 미포함)
+- **인스타·AI 키:** 구매자별 `data/buyer_settings.json`(gitignore) 또는 세션. UI·관리자 내보내기는 마스킹만. 판매자 Secrets `IG_*`는 데모용 선택
+- **로그인:** 세션 기준 실패 횟수 제한(약 5회 → 잠시 대기). 은행급 보안은 아님
+- **유출 시:** Secrets/토큰/관리자·구매자 비밀번호 **즉시 교체(rotate)**. 공개 저장소·채팅에 붙여 넣은 값은 폐기
+- **Streamlit Community Cloud(무료)** 는 편의용 호스팅이며 **은행·결제급 보안이 아닙니다.** 고가치 계정·고객 PII는 별도 관리를 권장합니다
+- 예시는 `your_admin_id` / `buyer1` / `seller@example.com` 만 사용 — 실아이디·실메일 금지
 
 ## 기능 (MVP)
 
