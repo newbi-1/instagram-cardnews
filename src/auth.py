@@ -1,4 +1,4 @@
-"""Buyer accounts + admin password/gate — local JSON and/or Streamlit secrets."""
+"""Buyer accounts + admin username/password — local JSON and/or Streamlit secrets."""
 
 from __future__ import annotations
 
@@ -126,23 +126,68 @@ def _secret_str(*keys: str) -> str:
     return ""
 
 
+def get_admin_username() -> str:
+    """Admin login id from secrets/env. Default empty — never hardcode seller id in code."""
+    return _secret_str("ADMIN_USERNAME")
+
+
 def get_admin_password() -> str:
+    """Plaintext or sha256$salt$digest in ADMIN_PASSWORD (secrets/env only)."""
     return _secret_str("ADMIN_PASSWORD")
 
 
+def get_admin_password_hash() -> str:
+    """Preferred: salted hash in secrets (sha256$salt$digest or digest+ADMIN_PASSWORD_SALT)."""
+    combined = _secret_str("ADMIN_PASSWORD_HASH")
+    if combined:
+        if combined.startswith("sha256$"):
+            return combined
+        salt = _secret_str("ADMIN_PASSWORD_SALT")
+        if salt and "$" not in combined:
+            return f"sha256${salt}${combined}"
+        return combined
+    return ""
+
+
 def admin_password_configured() -> bool:
-    return bool(get_admin_password())
+    return bool(get_admin_password_hash() or get_admin_password())
+
+
+def admin_username_configured() -> bool:
+    return bool(get_admin_username())
+
+
+def admin_account_configured() -> bool:
+    """Username + password (or hash) both present in secrets/env."""
+    return admin_username_configured() and admin_password_configured()
 
 
 def verify_admin_password(password: str) -> bool:
+    """Prefer ADMIN_PASSWORD_HASH; else ADMIN_PASSWORD (plain or sha256$ form)."""
+    hashed = get_admin_password_hash()
+    if hashed:
+        return verify_password(password or "", hashed)
     expected = get_admin_password()
     if not expected:
         return False
-    return pysecrets.compare_digest((password or "").strip(), expected)
+    return verify_password(password or "", expected)
+
+
+def authenticate_admin(username: str, password: str) -> bool:
+    """Account login: username from ADMIN_USERNAME + password/hash from secrets."""
+    expected_user = get_admin_username()
+    if not expected_user or not admin_password_configured():
+        return False
+    got_user = (username or "").strip()
+    if not got_user:
+        return False
+    if not pysecrets.compare_digest(got_user, expected_user):
+        return False
+    return verify_admin_password(password or "")
 
 
 def get_admin_gate() -> str:
-    """Long random URL gate string. ADMIN_GATE preferred; ADMIN_SECRET_PATH accepted as alias."""
+    """Optional legacy URL gate. ADMIN_GATE preferred; ADMIN_SECRET_PATH accepted as alias."""
     return _secret_str("ADMIN_GATE", "ADMIN_SECRET_PATH")
 
 
@@ -161,12 +206,18 @@ def verify_admin_gate(gate_value: str | None) -> bool:
 
 
 def get_admin_email() -> str:
-    """Fixed seller inbox for OTP — never accept arbitrary user-supplied addresses."""
+    """Optional OTP inbox — off by default; account login is primary."""
     return _secret_str("ADMIN_EMAIL")
 
 
 def admin_email_configured() -> bool:
     return bool(get_admin_email())
+
+
+def admin_otp_enabled() -> bool:
+    """Email OTP only when explicitly enabled (ADMIN_OTP_ENABLED=1) and email set."""
+    flag = _secret_str("ADMIN_OTP_ENABLED").lower()
+    return flag in {"1", "true", "yes", "on"} and admin_email_configured()
 
 
 def _parse_secrets_buyers() -> dict[str, dict[str, Any]]:
@@ -347,11 +398,13 @@ def secrets_toml_block(include_admin_placeholder: bool = True) -> str:
     lines: list[str] = []
     if include_admin_placeholder:
         # Placeholders only — never dump live ADMIN_* / API keys into UI
-        lines.append('ADMIN_PASSWORD = "여기에_관리자_비밀번호"')
-        lines.append('ADMIN_GATE = "여기에_긴_랜덤_게이트값"')
-        lines.append('ADMIN_EMAIL = "seller@example.com"')
-        lines.append('RESEND_API_KEY = "re_여기에_키"')
-        lines.append('# EMAIL_DEV_MODE = "1"  # 로컬 테스트만 — Cloud에서는 쓰지 마세요')
+        lines.append('ADMIN_USERNAME = "your_admin_id"')
+        lines.append('ADMIN_PASSWORD = "your_admin_password"')
+        lines.append('# ADMIN_PASSWORD_HASH = "sha256$salt$digest"  # optional preferred')
+        lines.append('# ADMIN_GATE = "optional_legacy_gate"')
+        lines.append('# ADMIN_EMAIL = "seller@example.com"')
+        lines.append('# ADMIN_OTP_ENABLED = "1"  # optional email OTP')
+        lines.append('# RESEND_API_KEY = "re_여기에_키"')
         lines.append("")
     store = load_buyers_file()
     file_buyers = store.get("buyers") or {}

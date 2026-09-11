@@ -50,14 +50,16 @@ st.set_page_config(
     layout="centered",
 )
 
-# ── Admin gate (Cloud-safe: ?gate= on main URL; do not rely on /_admin) ──
+# ── Optional admin gate shortcut (?gate=). Primary admin: sidebar 관리자 page. ──
 _gate_param = query_gate()
 if _gate_param:
-    # Gate present: match → admin; wrong/missing ADMIN_GATE → not found (never buyer)
+    # Optional legacy: matching gate opens admin on main URL. Wrong gate → not found.
     if admin_gate_configured() and verify_admin_gate(_gate_param):
         render_admin_console()
         st.stop()
-    show_not_found()
+    if admin_gate_configured():
+        show_not_found()
+    # Gate set in URL but ADMIN_GATE not configured → ignore, continue as buyer app
 
 # ── session defaults ─────────────────────────────────────
 ss = st.session_state

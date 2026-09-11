@@ -1,8 +1,8 @@
-"""Admin console UI — gate + email OTP (or password backup) + buyer management.
+"""Admin console UI — username+password account login + buyer management.
 
 Used by:
-- app_simple.py when ?gate= matches ADMIN_GATE (Streamlit Cloud-safe entry)
-- pages/_admin.py thin wrapper (local multipage)
+- pages/관리자.py (visible sidebar Admin entry)
+- app_simple.py optional ?gate= shortcut when ADMIN_GATE is set
 """
 
 from __future__ import annotations
@@ -10,9 +10,10 @@ from __future__ import annotations
 import streamlit as st
 
 from src.auth import (
-    admin_email_configured,
+    admin_account_configured,
     admin_gate_configured,
-    admin_password_configured,
+    admin_otp_enabled,
+    authenticate_admin,
     create_buyer,
     file_persistence_available,
     list_buyers_rows,
@@ -22,7 +23,6 @@ from src.auth import (
     set_buyer_enabled,
     update_buyer_note,
     verify_admin_gate,
-    verify_admin_password,
 )
 from src.email_otp import (
     can_send_email,
@@ -33,11 +33,11 @@ from src.email_otp import (
     verify_otp_code,
 )
 
-ADMIN_URL_PATTERN = "https://YOURAPP.streamlit.app/?gate=YOUR_ADMIN_GATE"
+ADMIN_PAGE_HINT = "사이드바 **관리자** 페이지 (또는 /관리자)"
 
 
 def query_gate() -> str:
-    """Read ?gate= from Streamlit query params (string or list)."""
+    """Read optional ?gate= from Streamlit query params (string or list)."""
     try:
         qp = st.query_params
     except Exception:
@@ -63,20 +63,21 @@ def show_not_found() -> None:
 
 
 def render_admin_console() -> None:
-    """Full admin UI. Requires valid ?gate= when ADMIN_GATE is configured."""
+    """Full admin UI. Primary auth: ADMIN_USERNAME + password/hash. Gate optional."""
     ss = st.session_state
     ss.setdefault("admin_ok", False)
     ss.setdefault("admin_flash", "")
 
-    # --- Layer 1: secret URL gate ---
-    gate_ok = admin_gate_configured() and verify_admin_gate(query_gate())
-    if not gate_ok:
+    # Optional legacy gate: if present in URL and configured, must match.
+    # Gate is NOT required to open this page.
+    gate_param = query_gate()
+    if gate_param and admin_gate_configured() and not verify_admin_gate(gate_param):
         show_not_found()
 
     st.title("🔐 관리자")
     st.caption(
-        "판매자 전용 · gate URL + 이메일 인증 · "
-        "구매자에게 gate·이메일·비밀번호를 공유하지 마세요."
+        "판매자 전용 · 아이디/비밀번호 로그인 · "
+        "구매자에게 관리자 계정·Secrets를 공유하지 마세요."
     )
 
     with st.expander("판매자: 관리자 여는 방법", expanded=not ss.admin_ok):
@@ -84,114 +85,85 @@ def render_admin_console() -> None:
             f"""
 **구매자 URL** (공유 OK): `https://YOURAPP.streamlit.app/`
 
-**관리자 URL** (비밀 · `ADMIN_GATE` 필수 · **이것만** 사용):
+**관리자** (공개 페이지 · 로그인 필요):
+- Cloud/로컬: 사이드바 **관리자** 메뉴
+- 또는 앱 URL의 **관리자** multipage
 
-```text
-{ADMIN_URL_PATTERN}
-```
+Secrets 필수 (App settings → Secrets):
+- `ADMIN_USERNAME` — 관리자 아이디
+- `ADMIN_PASSWORD` — 관리자 비밀번호 (또는 `ADMIN_PASSWORD_HASH`)
 
-`/_admin` 경로는 Streamlit Cloud에서 열리지 않을 수 있습니다.  
-북마크·공유는 **메인 URL + `?gate=`** 만 사용하세요.
-
-Secrets 필수:
-- `ADMIN_GATE` — 긴 랜덤 문자열
-- `ADMIN_EMAIL` — 판매자 수신 전용 (OTP는 이 주소로만 발송)
-- `RESEND_API_KEY` — [Resend](https://resend.com) 무료 API 키 (권장)
-- (선택) `ADMIN_PASSWORD` — `ADMIN_EMAIL` 미설정 시에만 비밀번호 백업
-- (로컬만) `EMAIL_DEV_MODE=1` — 키 없이 OTP를 화면에 표시 (Cloud 금지)
+선택:
+- `ADMIN_GATE` — 예전 `?gate=` 바로가기 (필수 아님)
+- `ADMIN_OTP_ENABLED=1` + `ADMIN_EMAIL` + `RESEND_API_KEY` — 이메일 OTP (기본 off)
 """
         )
         if ss.admin_flash:
             st.info(ss.admin_flash)
 
-    # --- Layer 2: email OTP (primary) or password backup ---
     if not ss.admin_ok:
-        use_email = admin_email_configured()
-        use_password_backup = (not use_email) and admin_password_configured()
-
-        if not use_email and not use_password_backup:
+        if not admin_account_configured():
             st.error(
-                "인증 수단이 없어요. Secrets에 `ADMIN_EMAIL` + `RESEND_API_KEY` "
-                "(권장) 또는 백업용 `ADMIN_PASSWORD` 를 넣어 주세요."
+                "관리자 계정이 없어요. Secrets에 `ADMIN_USERNAME` 과 "
+                "`ADMIN_PASSWORD`(또는 `ADMIN_PASSWORD_HASH`) 를 넣어 주세요."
             )
             st.code(
-                'ADMIN_GATE = "긴_랜덤_비밀값"\n'
-                'ADMIN_EMAIL = "seller@example.com"\n'
-                'RESEND_API_KEY = "re_..."\n'
-                '# ADMIN_PASSWORD = "백업용_선택"\n'
-                '# EMAIL_DEV_MODE = "1"  # 로컬만',
+                'ADMIN_USERNAME = "your_admin_id"\n'
+                'ADMIN_PASSWORD = "your_admin_password"\n'
+                '# ADMIN_PASSWORD_HASH = "sha256$salt$digest"  # optional',
                 language="toml",
             )
             st.stop()
 
-        if use_email:
-            st.subheader("이메일 인증")
-            st.caption(f"등록된 관리자 메일로 인증번호를 보냅니다 · {otp_target_hint()}")
+        st.subheader("관리자 로그인")
+        st.caption("아이디와 비밀번호로 입장합니다.")
+        with st.form("admin_login_form"):
+            admin_id = st.text_input("아이디", key="admin_id_in", autocomplete="username")
+            admin_pw = st.text_input(
+                "비밀번호",
+                type="password",
+                key="admin_pw_in",
+                autocomplete="current-password",
+            )
+            submitted = st.form_submit_button(
+                "로그인", type="primary", use_container_width=True
+            )
+        if submitted:
+            if authenticate_admin(admin_id or "", admin_pw or ""):
+                ss.admin_ok = True
+                ss.admin_flash = "로그인 완료."
+                clear_otp_session(ss)
+                st.rerun()
+            else:
+                st.error("아이디 또는 비밀번호가 올바르지 않아요.")
 
+        # Optional email OTP (off by default)
+        if admin_otp_enabled():
+            st.divider()
+            st.subheader("이메일 인증 (선택)")
+            st.caption(f"등록된 관리자 메일 · {otp_target_hint()}")
             if not can_send_email() and not email_dev_mode():
                 st.warning(
                     "RESEND_API_KEY 가 없습니다. "
-                    "https://resend.com 에서 무료 키를 발급해 Secrets에 넣으세요. "
-                    "로컬 테스트만 `EMAIL_DEV_MODE=1` 로 UI에 인증번호를 표시할 수 있습니다."
+                    "https://resend.com 에서 키를 발급하거나 OTP를 끄세요."
                 )
-
-            if st.button("인증번호 보내기", type="primary", use_container_width=True):
+            if st.button("인증번호 보내기", use_container_width=True):
                 ok, msg, dev_code = request_admin_otp(ss)
                 if ok:
                     st.success(msg)
                     if dev_code and email_dev_mode():
-                        st.error(
-                            "⚠️ EMAIL_DEV_MODE — 아래 코드는 테스트용입니다. "
-                            "Cloud/운영에서는 절대 EMAIL_DEV_MODE 를 켜지 마세요."
-                        )
                         st.code(dev_code, language=None)
-                        ss.admin_flash = (
-                            f"DEV OTP 표시됨 (로컬만). 대상: {otp_target_hint()}"
-                        )
                 else:
                     st.error(msg)
-
-            code_in = st.text_input(
-                "인증번호 6자리",
-                max_chars=6,
-                key="admin_otp_in",
-                placeholder="000000",
-            )
-            if st.button("인증하고 입장", use_container_width=True):
+            code_in = st.text_input("인증번호 6자리", max_chars=6, key="admin_otp_in")
+            if st.button("OTP로 입장", use_container_width=True):
                 ok, msg = verify_otp_code(ss, code_in or "")
                 if ok:
                     ss.admin_ok = True
-                    ss.admin_flash = (
-                        "이메일 인증 완료. 북마크는 gate 포함 URL만: "
-                        f"{ADMIN_URL_PATTERN}"
-                    )
+                    ss.admin_flash = "이메일 인증 완료."
                     st.rerun()
                 else:
                     st.error(msg)
-
-            if email_dev_mode() and ss.get("admin_otp_dev_code"):
-                st.warning(
-                    "DEV MODE: 세션에 저장된 테스트 OTP가 있습니다 "
-                    "(새로고침 시 위 버튼으로 재발급)."
-                )
-
-        else:
-            # Backup: password only when ADMIN_EMAIL is not configured
-            st.subheader("비밀번호 입장 (백업)")
-            st.caption(
-                "`ADMIN_EMAIL` 이 없어 비밀번호 백업 모드입니다. "
-                "가능하면 이메일 OTP를 설정하세요."
-            )
-            pw = st.text_input("관리자 비밀번호", type="password", key="admin_pw_in")
-            if st.button("입장", type="primary", use_container_width=True):
-                if verify_admin_password(pw or ""):
-                    ss.admin_ok = True
-                    ss.admin_flash = (
-                        "비밀번호 백업 입장. ADMIN_EMAIL + Resend OTP 설정을 권장합니다."
-                    )
-                    st.rerun()
-                else:
-                    st.error("비밀번호가 올바르지 않아요.")
 
         st.stop()
 
@@ -239,7 +211,6 @@ Secrets 필수:
                 "공개 채팅·깃에는 넣지 마세요."
             )
             st.code(plain, language=None)
-            # Secrets paste uses placeholders — never live password from session
             block = secrets_toml_for_new_buyer(
                 new_id.strip(), note=new_note or "", use_placeholder=True
             )
@@ -259,7 +230,6 @@ Secrets 필수:
             u = row["username"]
             enabled = row["enabled"]
             note = row["note"] or ""
-            # List: id / enabled / note only — never password or hash
             with st.expander(
                 f"{'✅' if enabled else '⛔'} {u}"
                 + (f" · {note}" if note else ""),
@@ -319,7 +289,7 @@ Secrets 필수:
     st.caption(
         "Streamlit Cloud → App settings → Secrets 에 붙여 넣으세요. "
         "아래 블록은 **플레이스홀더만** 포함합니다 (실비밀번호·실토큰 없음). "
-        "`ADMIN_GATE` / `ADMIN_EMAIL` / `RESEND_API_KEY` 는 구매자에게 알리지 마세요. "
+        "`ADMIN_USERNAME` / `ADMIN_PASSWORD` 는 구매자에게 알리지 마세요. "
         "`data/buyers.json` 은 깃에 올리지 마세요."
     )
     st.code(secrets_toml_block(include_admin_placeholder=True), language="toml")
@@ -327,5 +297,5 @@ Secrets 필수:
     st.divider()
     st.caption(
         "구매자 화면(메인)에는 관리자 링크를 넣지 않았습니다. "
-        "gate가 포함된 URL만 판매자가 보관하세요."
+        f"{ADMIN_PAGE_HINT} 에서 로그인하세요."
     )
