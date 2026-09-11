@@ -41,3 +41,9 @@ Thumbs.db
 data/buyers.json
 data/buyers.json.tmp
 data/.write_probe
+
+# Buyer settings & schedules (local / Cloud ephemeral — never commit secrets)
+data/buyer_settings.json
+data/buyer_settings.json.tmp
+data/schedules.json
+data/schedules.json.tmp
