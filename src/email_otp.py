@@ -187,14 +187,15 @@ def request_admin_otp(ss: Any) -> tuple[bool, str, str | None]:
 
 
 def _mask_email(email: str) -> str:
+    """UI-safe hint only — never show the full ADMIN_EMAIL."""
     email = (email or "").strip()
     if "@" not in email:
         return "***"
     local, _, domain = email.partition("@")
-    if len(local) <= 2:
-        shown = local[:1] + "*"
-    else:
-        shown = local[:2] + "***"
+    if not local:
+        return f"***@{domain}"
+    # e.g. seller@example.com -> s***@example.com
+    shown = local[:1] + "***"
     return f"{shown}@{domain}"
 
 

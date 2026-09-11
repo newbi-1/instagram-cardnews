@@ -346,12 +346,12 @@ def secrets_toml_block(include_admin_placeholder: bool = True) -> str:
     """Copy-paste block for Streamlit Cloud secrets (plain passwords)."""
     lines: list[str] = []
     if include_admin_placeholder:
-        admin = get_admin_password() or "여기에_관리자_비밀번호"
+        # Placeholders only — never dump live ADMIN_EMAIL / secrets into UI or tracked examples
+        admin = "여기에_관리자_비밀번호"
         gate = get_admin_gate() or "여기에_긴_랜덤_게이트값"
-        email = get_admin_email() or "seller@example.com"
         lines.append(f'ADMIN_PASSWORD = "{admin}"')
         lines.append(f'ADMIN_GATE = "{gate}"')
-        lines.append(f'ADMIN_EMAIL = "{email}"')
+        lines.append('ADMIN_EMAIL = "seller@example.com"')
         lines.append('RESEND_API_KEY = "re_여기에_키"')
         lines.append('# EMAIL_DEV_MODE = "1"  # 로컬 테스트만 — Cloud에서는 쓰지 마세요')
         lines.append("")

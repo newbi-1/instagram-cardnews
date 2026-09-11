@@ -126,7 +126,7 @@ if not ss.admin_ok:
 
     if use_email:
         st.subheader("이메일 인증")
-        st.caption(f"등록된 판매자 메일로만 인증번호를 보냅니다 · {otp_target_hint()}")
+        st.caption(f"등록된 관리자 메일로 인증번호를 보냅니다 · {otp_target_hint()}")
 
         if not can_send_email() and not email_dev_mode():
             st.warning(
