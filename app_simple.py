@@ -7,7 +7,13 @@ from pathlib import Path
 import streamlit as st
 from dotenv import load_dotenv
 
-from src.auth import authenticate_buyer, merged_buyers
+from src.admin_console import query_gate, render_admin_console, show_not_found
+from src.auth import (
+    admin_gate_configured,
+    authenticate_buyer,
+    merged_buyers,
+    verify_admin_gate,
+)
 from src.auto_copy import apply_caption_template, auto_build_card_inputs
 from src.concepts import (
     CONCEPT_IDS,
@@ -43,6 +49,15 @@ st.set_page_config(
     page_icon="📰",
     layout="centered",
 )
+
+# ── Admin gate (Cloud-safe: ?gate= on main URL; do not rely on /_admin) ──
+_gate_param = query_gate()
+if _gate_param:
+    # Gate present: match → admin; wrong/missing ADMIN_GATE → not found (never buyer)
+    if admin_gate_configured() and verify_admin_gate(_gate_param):
+        render_admin_console()
+        st.stop()
+    show_not_found()
 
 # ── session defaults ─────────────────────────────────────
 ss = st.session_state

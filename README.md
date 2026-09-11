@@ -3,7 +3,7 @@
 한국어 인스타그램 카드뉴스 생성 도구입니다. KPI는 **조회수**입니다.  
 구매자는 **웹 링크만** 열고: **로그인** → (선택) 설정에서 인스타 연결·고정 캡션 → 콘셉트 → **주제** → **자동으로 카드 만들기**(무료 구글 뉴스 RSS) → 미리보기 → (선택) 올리기.
 
-판매자는 숨은 관리자 페이지(`pages/_admin`, 사이드바에 안 보임)에서 구매자 계정을 만듭니다. `ADMIN_GATE`(비밀 URL) + `ADMIN_EMAIL` OTP(Resend) 필요.
+판매자는 메인 URL에 `?gate=ADMIN_GATE`를 붙여 관리자 콘솔을 엽니다 (Streamlit Cloud 권장). `ADMIN_EMAIL` OTP(Resend) 필요. 로컬 multipage용 `pages/_admin.py`는 동일 UI 래퍼입니다.
 
 ## 구매자 UX (앱 안)
 
@@ -20,15 +20,16 @@
 | 역할 | 진입 | 인증 |
 |---|---|---|
 | 구매자 | `app_simple.py` (배포 Main file) | 판매자가 만든 아이디/비밀번호 **필수** |
-| 관리자(판매자) | `?gate=ADMIN_GATE` + `/_admin` (사이드바 숨김) | gate **그리고** `ADMIN_EMAIL` OTP (Resend). `ADMIN_PASSWORD`는 이메일 미설정 시 백업만 |
+| 관리자(판매자) | `https://YOURAPP.streamlit.app/?gate=YOUR_ADMIN_GATE` 만 | gate **그리고** `ADMIN_EMAIL` OTP (Resend). `ADMIN_PASSWORD`는 이메일 미설정 시 백업만 |
 
-**관리자 URL 예**
+**관리자 URL (이것만 · `/_admin` 사용 금지)**
 
 ```text
-https://YOURAPP.streamlit.app/_admin?gate=너의비밀값
+https://YOURAPP.streamlit.app/?gate=YOUR_ADMIN_GATE
 ```
 
-gate가 틀리거나 없으면 「페이지 없음」만 보입니다 (관리자 존재·비밀번호 힌트 없음).
+- 구매자: `https://YOURAPP.streamlit.app/` (gate 없음)
+- gate가 틀리면 「페이지 없음」만 보이고 구매자 화면으로 떨어지지 않습니다 (관리자 존재·비밀번호 힌트 없음).
 
 - 로컬 계정 저장: `data/buyers.json` (**깃 제외**)
 - Streamlit Cloud Secrets: `ADMIN_GATE` + `ADMIN_EMAIL` + `RESEND_API_KEY` + `[buyers.아이디]` (+ 선택 `ADMIN_PASSWORD`). 예: `.streamlit/secrets.toml.example`
