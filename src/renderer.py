@@ -144,50 +144,50 @@ _GENERIC_HOOKS = [
 _CTA_BY_AUDIENCE: dict[str, dict[str, str]] = {
     "직장인": {
         "title": "동료에게도 살짝 공유해요",
-        "subtitle": "커피 타임에 다시 꺼내볼 수 있게 저장해 두세요",
-        "body": "도움이 됐다면 ❤️ · 취향은 댓글로 · 팔로우하면 다음 카드도",
+        "subtitle": "커피 타임에 다시 꺼내볼 수 있게, 저장해 두세요",
+        "body": "도움이 됐다면 좋아요, 취향은 댓글로 남겨 주세요. 팔로우하면 다음 카드도 받아볼 수 있어요",
     },
     "직장맘": {
         "title": "같은 맘 친구에게 전해 주세요",
-        "subtitle": "바쁜 하루, 필요할 때 꺼내보도록 저장해요",
-        "body": "공감되면 ❤️ · 육아 팁은 댓글로 · 팔로우하고 다음 소식 받기",
+        "subtitle": "바쁜 하루, 필요할 때 꺼내보도록 저장해 두세요",
+        "body": "공감되셨다면 좋아요, 육아 팁은 댓글로 나눠 주세요. 저장해 두고, 팔로우하면 다음 소식도 받아볼 수 있어요",
     },
     "자취생": {
         "title": "자취 메이트에게도 공유해요",
-        "subtitle": "나중에 다시 볼 수 있게 저장해 두세요",
-        "body": "유용했다면 ❤️ · 꿀팁은 댓글로 · 팔로우하면 더 받아요",
+        "subtitle": "나중에 다시 볼 수 있게, 저장해 두세요",
+        "body": "유용했다면 좋아요, 꿀팁은 댓글로 남겨 주세요. 팔로우하면 다음 카드도 받아볼 수 있어요",
     },
     "사장님": {
         "title": "사장님 커뮤니티에 공유해 보세요",
-        "subtitle": "매장 운영에 참고하도록 저장해 두세요",
-        "body": "도움 됐다면 ❤️ · 현장 후기는 댓글로 · 팔로우하고 팁 더 받기",
+        "subtitle": "매장 운영에 참고하도록, 저장해 두세요",
+        "body": "도움이 됐다면 좋아요, 현장 후기는 댓글로 남겨 주세요. 팔로우하면 운영 팁도 이어서 받아볼 수 있어요",
     },
     "입문자": {
         "title": "입문 친구에게도 알려 주세요",
-        "subtitle": "복습할 때 꺼내보도록 저장해 두세요",
-        "body": "이해가 됐다면 ❤️ · 궁금한 점은 댓글로 · 팔로우하면 이어져요",
+        "subtitle": "복습할 때 꺼내볼 수 있게, 저장해 두세요",
+        "body": "이해가 됐다면 좋아요, 궁금한 점은 댓글로 남겨 주세요. 팔로우하면 다음 카드도 이어져요",
     },
     "학부모": {
         "title": "학부모 단톡에도 공유해 보세요",
-        "subtitle": "필요할 때 다시 보도록 저장해 두세요",
-        "body": "공감되면 ❤️ · 경험은 댓글로 · 팔로우하고 다음 가이드 받기",
+        "subtitle": "필요할 때 다시 볼 수 있게, 저장해 두세요",
+        "body": "공감되셨다면 좋아요, 경험은 댓글로 남겨 주세요. 팔로우하면 다음 가이드도 받아볼 수 있어요",
     },
     "동네 주민": {
         "title": "이웃에게도 전해 주세요",
-        "subtitle": "동네 소식, 필요할 때 꺼내보도록 저장해요",
-        "body": "유익했다면 ❤️ · 동네 정보는 댓글로 · 팔로우하면 소식 이어져요",
+        "subtitle": "동네 소식, 필요할 때 꺼내보도록 저장해 두세요",
+        "body": "유익했다면 좋아요, 동네 정보는 댓글로 남겨 주세요. 팔로우하면 다음 소식도 받아볼 수 있어요",
     },
     "학생": {
         "title": "친구에게도 공유해 보세요",
-        "subtitle": "시험·과제 전에 다시 보도록 저장해요",
-        "body": "도움 됐다면 ❤️ · 질문은 댓글로 · 팔로우하고 다음 카드 받기",
+        "subtitle": "시험·과제 전에 다시 볼 수 있게, 저장해 두세요",
+        "body": "도움이 됐다면 좋아요, 질문은 댓글로 남겨 주세요. 팔로우하면 다음 카드도 받아볼 수 있어요",
     },
 }
 
 _CTA_DEFAULT = {
     "title": "저장하고 공유해 보세요",
     "subtitle": "필요할 때 다시 꺼내볼 수 있어요",
-    "body": "도움이 됐다면 ❤️ · 생각은 댓글로 · 팔로우하면 다음 카드도",
+    "body": "도움이 됐다면 좋아요, 생각은 댓글로 남겨 주세요. 저장해 두고, 팔로우하면 다음 카드도 받아볼 수 있어요",
 }
 
 
@@ -295,8 +295,11 @@ def _wrap_cjk_chars(
     max_width: int,
     draw: ImageDraw.ImageDraw,
 ) -> list[str]:
-    """Greedy char wrap with soft breaks at punctuation / spaces when possible."""
-    break_after = set(" ,.，、。.!?;:！？…·)~)]}」』")
+    """Greedy char wrap; prefer breaking after commas before mid-phrase cuts."""
+    # Strong preference: break after commas / enumeration marks when wrapping.
+    prefer_break_after = set(",，、")
+    # Weaker soft breaks (spaces + sentence punctuation)
+    soft_break_after = set(" ,.，、。.!?;:！？…·)~)]}」』")
     out: list[str] = []
     n = len(para)
     i = 0
@@ -314,14 +317,22 @@ def _wrap_cjk_chars(
                 hi = mid - 1
         if best <= i:
             best = i + 1
-        # soft-back to punctuation within last 30% of the chunk when not last line
+        # Soft-back when not the last line: prefer commas (wide window), else other punctuation.
         if best < n and best - i > 4:
-            window_start = i + max(1, int((best - i) * 0.7))
             soft = -1
-            for k in range(best - 1, window_start - 1, -1):
-                if para[k] in break_after or para[k].isspace():
+            # Prefer comma-like breaks in a wider window (~last 60% of the chunk).
+            prefer_start = i + max(1, int((best - i) * 0.4))
+            for k in range(best - 1, prefer_start - 1, -1):
+                if para[k] in prefer_break_after:
                     soft = k + 1
                     break
+            # Fall back to other punctuation / spaces in last ~30%.
+            if soft < 0:
+                window_start = i + max(1, int((best - i) * 0.7))
+                for k in range(best - 1, window_start - 1, -1):
+                    if para[k] in soft_break_after or para[k].isspace():
+                        soft = k + 1
+                        break
             if soft > i:
                 best = soft
         chunk = para[i:best].rstrip()

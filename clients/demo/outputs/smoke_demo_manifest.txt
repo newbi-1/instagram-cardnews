@@ -8,4 +8,4 @@ smoke_demo_slide_03.png	keywords=cafe,espresso,office,s372f0f2
 smoke_demo_slide_04.png	keywords=espresso,cappuccino,office,s4fbd4d8
 smoke_demo_slide_05.png	keywords=cappuccino,barista,office,s5627d21
 smoke_demo_slide_06.png	keywords=barista,mug,office,s68793d7
-smoke_demo_slide_07.png	keywords=mug,pastry,office,s7bec8e8
+smoke_demo_slide_07.png	keywords=mug,pastry,office,s7e13a05
