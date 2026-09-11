@@ -37,6 +37,7 @@ def load_profile(name: str) -> dict[str, Any]:
             "display_name": name,
             "default_style": "style.clean",
             "default_audience": "직장인",
+            "concept_id": "cafe",
             "bio": "",
         }
     with path.open(encoding="utf-8") as f:
@@ -65,7 +66,8 @@ def ensure_demo_profile() -> None:
             "display_name": "데모 카페",
             "default_style": "style.clean",
             "default_audience": "직장인",
-            "bio": "카드뉴스 MVP 샘플 프로필",
+            "concept_id": "cafe",
+            "bio": "카드뉴스 MVP 샘플 프로필 (카페 콘셉트)",
             "instagram_handle": "@demo_cafe",
         },
     )

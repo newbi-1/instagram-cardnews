@@ -17,6 +17,11 @@ from .backgrounds import (
     prepare_cta_bg,
     slide_photo_keywords,
 )
+from .concepts import (
+    cta_from_pack,
+    cover_hook_from_pack,
+    normalize_concept_id,
+)
 from .presets import STYLES
 
 SIZE = 1080
@@ -391,8 +396,11 @@ def _pick_template(templates: list[str], seed: str) -> str:
     return templates[idx]
 
 
-def cover_hook(topic: str, audience: str) -> str:
-    """Short curiosity/benefit hook for cover — no paid LLM."""
+def cover_hook(topic: str, audience: str, concept_id: str | None = None) -> str:
+    """Short curiosity/benefit hook for cover — concept pack first, then legacy tables."""
+    cid = normalize_concept_id(concept_id) if concept_id else None
+    if cid:
+        return cover_hook_from_pack(cid, topic, audience, _pick_template)
     pair = _COVER_HOOKS_PAIR.get((topic, audience))
     if pair:
         return pair
@@ -408,8 +416,11 @@ def cover_hook(topic: str, audience: str) -> str:
     return tmpl.format(topic=topic, audience=audience)
 
 
-def cta_copy(audience: str, topic: str) -> dict[str, str]:
-    """Soft engagement CTA tailored to audience label."""
+def cta_copy(audience: str, topic: str, concept_id: str | None = None) -> dict[str, str]:
+    """Soft engagement CTA — concept pack tone, else audience default."""
+    cid = normalize_concept_id(concept_id) if concept_id else None
+    if cid:
+        return cta_from_pack(cid, audience)
     base = dict(_CTA_BY_AUDIENCE.get(audience, _CTA_DEFAULT))
     return base
 
@@ -639,12 +650,14 @@ def build_slide_plan(
     source: str,
     style_id: str,
     profile_name: str = "",
+    concept_id: str | None = None,
 ) -> list[dict[str, Any]]:
     """5~8장 슬라이드 플랜 — cover + measured body continuations + CTA."""
     style = STYLES.get(style_id, STYLES["style.clean"])
+    cid = normalize_concept_id(concept_id) if concept_id else None
     bodies = _split_source(source, max_slides=MAX_TOTAL_SLIDES, min_slides=MIN_TOTAL_SLIDES)
-    hook = cover_hook(topic, audience)
-    cta = cta_copy(audience, topic)
+    hook = cover_hook(topic, audience, concept_id=cid)
+    cta = cta_copy(audience, topic, concept_id=cid)
 
     plan: list[dict[str, Any]] = []
     plan.append(
@@ -657,6 +670,7 @@ def build_slide_plan(
             "style_id": style_id,
             "topic": topic,
             "audience": audience,
+            "concept_id": cid or "",
         }
     )
     for b in bodies:
@@ -671,6 +685,7 @@ def build_slide_plan(
                 "style_id": style_id,
                 "topic": topic,
                 "audience": audience,
+                "concept_id": cid or "",
             }
         )
     plan.append(
@@ -683,6 +698,7 @@ def build_slide_plan(
             "style_id": style_id,
             "topic": topic,
             "audience": audience,
+            "concept_id": cid or "",
         }
     )
 
@@ -699,6 +715,7 @@ def build_slide_plan(
                 "style_id": style_id,
                 "topic": topic,
                 "audience": audience,
+                "concept_id": cid or "",
             },
         )
     if len(plan) > MAX_TOTAL_SLIDES:
@@ -716,6 +733,7 @@ def build_slide_plan(
             body=str(s.get("body", "")),
             page=s["page"],
             role=str(s.get("role", "body")),
+            concept_id=cid,
         )
     return plan
 
@@ -805,6 +823,7 @@ def render_slide(slide: dict[str, Any], photo: Image.Image | None = None) -> Ima
             body=str(slide.get("body", "")),
             page=int(slide.get("page", 1)),
             role=role,
+            concept_id=slide.get("concept_id") or None,
         )
         photo = fetch_topic_photo(
             kw,
@@ -982,11 +1001,15 @@ def generate_cardnews(
     out_dir: Path,
     profile_name: str = "",
     run_id: str | None = None,
+    concept_id: str | None = None,
 ) -> list[Path]:
     """슬라이드 생성 후 PNG 경로 리스트 반환. 슬라이드마다 다른 배경 이미지."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    plan = build_slide_plan(topic, audience, source, style_id, profile_name)
+    cid = normalize_concept_id(concept_id) if concept_id else None
+    plan = build_slide_plan(
+        topic, audience, source, style_id, profile_name, concept_id=cid
+    )
     style = STYLES.get(style_id, STYLES["style.clean"])
     run_id = run_id or datetime.now().strftime("%Y%m%d_%H%M%S")
     paths: list[Path] = []
@@ -1000,6 +1023,7 @@ def generate_cardnews(
             body=str(slide.get("body", "")),
             page=int(slide.get("page", 1)),
             role=str(slide.get("role", "body")),
+            concept_id=cid,
         )
         kw_log.append(kw)
         photo = fetch_topic_photo(
@@ -1017,7 +1041,7 @@ def generate_cardnews(
     with manifest.open("w", encoding="utf-8") as f:
         f.write(
             f"topic={topic}\naudience={audience}\nstyle={style_id}\n"
-            f"slides={len(paths)}\n"
+            f"concept={cid or ''}\nslides={len(paths)}\n"
         )
         for i, (p, kw) in enumerate(zip(paths, kw_log), start=1):
             f.write(f"{p.name}\tkeywords={kw}\n")

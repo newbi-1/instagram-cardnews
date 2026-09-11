@@ -42,10 +42,20 @@ TOPIC_TAGS: dict[str, str] = {k: ",".join(v[:3]) for k, v in TOPIC_TAG_POOLS.ite
 DEFAULT_TAGS = "lifestyle,minimal,aesthetic"
 
 
-def photo_keywords(topic: str, audience: str = "") -> str:
-    """Build English comma-tags for free photo search."""
+def photo_keywords(topic: str, audience: str = "", concept_id: str | None = None) -> str:
+    """Build English comma-tags for free photo search (concept-aware)."""
     parts: list[str] = []
-    if topic in TOPIC_TAG_POOLS:
+    pool: list[str] | None = None
+    if concept_id:
+        try:
+            from .concepts import photo_pool_for
+
+            pool = photo_pool_for(concept_id, topic)
+        except Exception:
+            pool = None
+    if pool:
+        parts.extend(pool[:3])
+    elif topic in TOPIC_TAG_POOLS:
         parts.extend(TOPIC_TAG_POOLS[topic][:3])
     else:
         slug = re.sub(r"[^a-zA-Z0-9]+", ",", topic).strip(",").lower()
@@ -69,9 +79,19 @@ def slide_photo_keywords(
     body: str = "",
     page: int = 1,
     role: str = "body",
+    concept_id: str | None = None,
 ) -> str:
-    """Unique real Flickr-style tags per slide (topic pool rotation + audience)."""
-    pool = list(TOPIC_TAG_POOLS.get(topic, DEFAULT_TAGS.split(",")))
+    """Unique real Flickr-style tags per slide (concept/topic pool + audience)."""
+    pool: list[str] | None = None
+    if concept_id:
+        try:
+            from .concepts import photo_pool_for
+
+            pool = photo_pool_for(concept_id, topic)
+        except Exception:
+            pool = None
+    if not pool:
+        pool = list(TOPIC_TAG_POOLS.get(topic, DEFAULT_TAGS.split(",")))
     primary = pool[(max(page, 1) - 1) % len(pool)]
     secondary = pool[(max(page, 1)) % len(pool)]
 
@@ -79,7 +99,7 @@ def slide_photo_keywords(
     if audience in AUDIENCE_TAGS:
         aud = AUDIENCE_TAGS[audience].split(",")[0]
 
-    snippet = f"{role}|{title}|{body[:48]}|{page}".strip()
+    snippet = f"{concept_id or ''}|{role}|{title}|{body[:48]}|{page}".strip()
     token = hashlib.sha1(snippet.encode("utf-8")).hexdigest()
     tertiary = pool[int(token[:6], 16) % len(pool)]
 

@@ -45,6 +45,7 @@ def _run(run_id: str, source: str) -> list[Path]:
         out_dir=out,
         profile_name="데모 카페",
         run_id=run_id,
+        concept_id="cafe",
     )
     print(f"[{run_id}] generated {len(paths)} slides")
     for p in paths:

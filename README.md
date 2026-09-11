@@ -1,7 +1,7 @@
 # 인스타그램 카드뉴스 MVP
 
 한국어 인스타그램 카드뉴스 생성 도구입니다. KPI는 **조회수**입니다.  
-주제·타겟·스타일을 고르고 소스 텍스트를 붙여 넣으면 1080×1080 PNG 슬라이드(5~8장)를 만듭니다.
+먼저 **업종/콘셉트**를 고른 뒤 주제·타겟·스타일과 소스 텍스트로 1080×1080 PNG 슬라이드(5~8장)를 만듭니다.
 
 ## 빠른 실행
 
@@ -31,6 +31,23 @@
 | dry-run 발행 stub (기본 ON) | 로컬 파일 직접 업로드 (Graph는 공개 HTTPS URL 필요) |
 | 토큰 있을 때 Graph API 캐러셀 경로 | 스케줄링·분석 대시보드 |
 
+## 콘셉트 팩
+
+구매자가 카페 전용이 아니라 **업종/콘셉트**를 먼저 고릅니다. 각 팩은 사진 키워드 풀, 커버 훅, CTA 톤, 주제·타겟 칩, 샘플 소스를 제공합니다.
+
+| id | UI |
+|---|---|
+| `cafe` | 카페 |
+| `shopping` | 쇼핑몰 |
+| `academy` | 학원 |
+| `clinic` | 병원/클리닉 |
+| `real_estate` | 부동산 |
+| `restaurant` | 식당 |
+| `personal_brand` | 개인브랜딩 |
+| `custom` | 직접 입력 |
+
+프로필에 `concept_id`가 저장되며, 생성 시 렌더러가 활성 콘셉트의 훅/CTA/사진 키워드를 사용합니다. 정의는 `src/concepts.py`.
+
 ## 스타일
 
 - `style.clean` — Navy Guide
@@ -46,7 +63,7 @@
 ## 폴더
 
 ```
-clients/<profile>/profile.json
+clients/<profile>/profile.json   # concept_id 포함
 clients/<profile>/outputs/*.png
 assets/fonts/          # Pretendard (OFL)
 assets/cache/          # 사진 캐시 (gitignore)
