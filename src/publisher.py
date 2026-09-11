@@ -23,10 +23,25 @@ class PublishResult:
     raw: dict[str, Any] | None = None
 
 
-def has_ig_credentials() -> bool:
-    token = os.getenv("IG_ACCESS_TOKEN", "").strip()
-    user_id = os.getenv("IG_USER_ID", "").strip()
-    return bool(token and user_id)
+def resolve_ig_credentials(
+    token: str | None = None,
+    user_id: str | None = None,
+) -> tuple[str, str]:
+    """Resolve IG token/user_id: explicit args → env → empty.
+
+    UI paste / session values should be passed as args so buyers need no .env.
+    """
+    t = (token or "").strip() or os.getenv("IG_ACCESS_TOKEN", "").strip()
+    u = (user_id or "").strip() or os.getenv("IG_USER_ID", "").strip()
+    return t, u
+
+
+def has_ig_credentials(
+    token: str | None = None,
+    user_id: str | None = None,
+) -> bool:
+    t, u = resolve_ig_credentials(token, user_id)
+    return bool(t and u)
 
 
 def graph_base_for_token(token: str) -> str:
@@ -155,8 +170,13 @@ def publish_carousel(
     caption: str,
     *,
     dry_run: bool = True,
+    access_token: str | None = None,
+    ig_user_id: str | None = None,
 ) -> PublishResult:
-    """캐러셀 발행. dry_run=True 또는 자격증명 없으면 stub."""
+    """캐러셀 발행. dry_run=True 또는 자격증명 없으면 stub.
+
+    access_token / ig_user_id 를 넘기면 env·secrets 보다 UI 값이 우선합니다.
+    """
     paths = [Path(p) for p in image_paths]
     missing = [str(p) for p in paths if not p.exists()]
     if missing:
@@ -167,21 +187,21 @@ def publish_carousel(
             media_ids=[],
         )
 
-    if dry_run or not has_ig_credentials():
-        reason = "dry-run 모드" if dry_run else "IG_ACCESS_TOKEN / IG_USER_ID 미설정"
+    token, user_id = resolve_ig_credentials(access_token, ig_user_id)
+
+    if dry_run or not (token and user_id):
+        reason = "연습 모드" if dry_run else "액세스 토큰 / 사용자 ID 미설정"
         return PublishResult(
             ok=True,
             dry_run=True,
             message=(
-                f"[STUB] {reason}. 실제 발행하지 않았습니다. "
-                f"슬라이드 {len(paths)}장, caption 길이 {len(caption)}자."
+                f"[연습] {reason}. 실제로 올리지 않았습니다. "
+                f"슬라이드 {len(paths)}장, 캡션 {len(caption)}자."
             ),
             media_ids=[f"stub_media_{i+1}" for i in range(len(paths))],
             raw={"paths": [str(p) for p in paths], "caption": caption},
         )
 
-    token = os.getenv("IG_ACCESS_TOKEN", "").strip()
-    user_id = os.getenv("IG_USER_ID", "").strip()
     graph_base = graph_base_for_token(token)
 
     # 공식 Graph API: 각 이미지를 컨테이너로 생성 → 캐러셀 컨테이너 → media_publish

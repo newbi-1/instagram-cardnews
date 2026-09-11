@@ -5,4 +5,4 @@ if not exist .venv (
   .venv\Scripts\pip install -r requirements.txt
 )
 call .venv\Scripts\activate.bat
-streamlit run app.py --server.headless true
+streamlit run app_simple.py --server.headless true

@@ -7,4 +7,4 @@ if [ ! -d .venv ]; then
 fi
 # shellcheck disable=SC1091
 source .venv/bin/activate
-streamlit run app.py --server.headless true
+streamlit run app_simple.py --server.headless true
