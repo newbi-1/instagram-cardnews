@@ -1,0 +1,9 @@
+topic=꿀팁
+audience=자취생
+style=style.bold
+slides=5
+smoke_style_bold_slide_01.png
+smoke_style_bold_slide_02.png
+smoke_style_bold_slide_03.png
+smoke_style_bold_slide_04.png
+smoke_style_bold_slide_05.png

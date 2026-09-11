@@ -1,0 +1,8 @@
+{
+  "name": "demo",
+  "display_name": "데모 카페",
+  "bio": "카드뉴스 MVP 샘플 프로필",
+  "instagram_handle": "@demo_cafe",
+  "default_style": "style.clean",
+  "default_audience": "직장인"
+}

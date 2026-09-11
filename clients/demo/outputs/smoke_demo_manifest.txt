@@ -1,0 +1,9 @@
+topic=신메뉴
+audience=직장인
+style=style.clean
+slides=5
+smoke_demo_slide_01.png
+smoke_demo_slide_02.png
+smoke_demo_slide_03.png
+smoke_demo_slide_04.png
+smoke_demo_slide_05.png
