@@ -1,4 +1,4 @@
-"""Buyer accounts + admin password — local JSON and/or Streamlit secrets."""
+"""Buyer accounts + admin password/gate — local JSON and/or Streamlit secrets."""
 
 from __future__ import annotations
 
@@ -108,19 +108,26 @@ def _secrets_obj() -> Any | None:
         return None
 
 
-def get_admin_password() -> str:
-    env = (os.environ.get("ADMIN_PASSWORD") or "").strip()
-    if env:
-        return env
+def _secret_str(*keys: str) -> str:
+    """First non-empty value from env, then st.secrets, for any of the given keys."""
+    for key in keys:
+        env = (os.environ.get(key) or "").strip()
+        if env:
+            return env
     sec = _secrets_obj()
     if sec is None:
         return ""
-    try:
-        if "ADMIN_PASSWORD" in sec and sec["ADMIN_PASSWORD"]:
-            return str(sec["ADMIN_PASSWORD"]).strip()
-    except Exception:
-        pass
+    for key in keys:
+        try:
+            if key in sec and sec[key]:
+                return str(sec[key]).strip()
+        except Exception:
+            continue
     return ""
+
+
+def get_admin_password() -> str:
+    return _secret_str("ADMIN_PASSWORD")
 
 
 def admin_password_configured() -> bool:
@@ -132,6 +139,34 @@ def verify_admin_password(password: str) -> bool:
     if not expected:
         return False
     return pysecrets.compare_digest((password or "").strip(), expected)
+
+
+def get_admin_gate() -> str:
+    """Long random URL gate string. ADMIN_GATE preferred; ADMIN_SECRET_PATH accepted as alias."""
+    return _secret_str("ADMIN_GATE", "ADMIN_SECRET_PATH")
+
+
+def admin_gate_configured() -> bool:
+    return bool(get_admin_gate())
+
+
+def verify_admin_gate(gate_value: str | None) -> bool:
+    expected = get_admin_gate()
+    if not expected:
+        return False
+    got = (gate_value or "").strip()
+    if not got:
+        return False
+    return pysecrets.compare_digest(got, expected)
+
+
+def get_admin_email() -> str:
+    """Fixed seller inbox for OTP — never accept arbitrary user-supplied addresses."""
+    return _secret_str("ADMIN_EMAIL")
+
+
+def admin_email_configured() -> bool:
+    return bool(get_admin_email())
 
 
 def _parse_secrets_buyers() -> dict[str, dict[str, Any]]:
@@ -312,7 +347,13 @@ def secrets_toml_block(include_admin_placeholder: bool = True) -> str:
     lines: list[str] = []
     if include_admin_placeholder:
         admin = get_admin_password() or "여기에_관리자_비밀번호"
+        gate = get_admin_gate() or "여기에_긴_랜덤_게이트값"
+        email = get_admin_email() or "seller@example.com"
         lines.append(f'ADMIN_PASSWORD = "{admin}"')
+        lines.append(f'ADMIN_GATE = "{gate}"')
+        lines.append(f'ADMIN_EMAIL = "{email}"')
+        lines.append('RESEND_API_KEY = "re_여기에_키"')
+        lines.append('# EMAIL_DEV_MODE = "1"  # 로컬 테스트만 — Cloud에서는 쓰지 마세요')
         lines.append("")
     # Prefer file records + merged view with plain pwd only when we just created
     store = load_buyers_file()
