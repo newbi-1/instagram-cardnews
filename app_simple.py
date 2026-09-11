@@ -1,4 +1,4 @@
-"""인스타그램 카드뉴스 — 웹 간단 UI (한 페이지)."""
+"""인스타그램 카드뉴스 — 웹 간단 UI (한 페이지, 구매자 UX)."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from src.renderer import generate_cardnews
 load_dotenv()
 ensure_demo_profile()
 
-# Optional Streamlit Cloud secrets → env (UI paste still overrides)
+# Optional Streamlit Cloud secrets → env (Settings UI paste still overrides)
 try:
     if "IG_ACCESS_TOKEN" in st.secrets and st.secrets["IG_ACCESS_TOKEN"]:
         import os
@@ -49,7 +49,8 @@ ss.setdefault("last_meta", {})
 ss.setdefault("ig_token", "")
 ss.setdefault("ig_user_id", "")
 ss.setdefault("concept_id", "cafe")
-ss.setdefault("remember_ig", False)
+ss.setdefault("open_settings", False)
+ss.setdefault("open_help", False)
 
 
 def _chip_index(options: list[str], value: str, fallback: int = 0) -> int:
@@ -68,10 +69,202 @@ def _load_ig_from_query() -> None:
         pass
 
 
+def _persist_ig_uid_to_query() -> None:
+    """Keep account number in URL for refresh convenience; never put token in URL."""
+    try:
+        uid = (ss.ig_user_id or "").strip()
+        if uid:
+            st.query_params["ig_uid"] = uid
+        elif "ig_uid" in st.query_params:
+            del st.query_params["ig_uid"]
+    except Exception:
+        pass
+
+
+def _ig_connected() -> bool:
+    return has_ig_credentials(
+        (ss.ig_token or "").strip(),
+        (ss.ig_user_id or "").strip(),
+    )
+
+
+def _ig_status_label() -> str:
+    if _ig_connected():
+        _, u = resolve_ig_credentials(ss.ig_token, ss.ig_user_id)
+        masked = ("…" + u[-4:]) if len(u) >= 4 else "연결됨"
+        return f"✅ 연결됨 {masked}"
+    return "⚪ 아직 연결 안 됨"
+
+
+def _render_how_to_get_keys() -> None:
+    """구매자용: 판매자에게 키 받는 법 + 판매자가 알려 줄 간단 클릭 순서."""
+    st.markdown(
+        """
+**가장 쉬운 방법:** 판매자(안내해 준 분)에게 **연결 키 1·2**를 받아 위에 붙여 넣으세요.
+
+판매자가 키를 만들 때 누르는 순서(참고):
+
+1. 컴퓨터에서 **Meta 개발자 사이트**에 로그인합니다.
+2. **앱 만들기**를 누릅니다. (처음이면 안내에 따라 앱 이름만 넣으면 됩니다)
+3. 인스타그램 관련 **사용 항목**을 추가합니다.
+4. 내 인스타 계정을 **테스터**로 넣고, 인스타 앱/알림에서 **수락**합니다.
+5. **로그인·토큰 발급** 화면에서 긴 글(연결 키 1)을 복사합니다.
+6. **계정 번호**(연결 키 2, 숫자)를 확인·복사합니다.
+7. 이 앱 **설정**에 붙여 넣고 **저장**합니다. 먼저 **연습**으로 확인해 보세요.
+
+> 키는 비밀번호처럼 다루세요. 카톡·깃허브·압축 파일에 넣지 마세요.
+"""
+    )
+
+
+def _render_settings_panel() -> None:
+    """사이드바 설정: 인스타 연결을 맨 위에."""
+    st.markdown("### ⚙️ 설정")
+    st.caption(_ig_status_label())
+
+    st.markdown("#### 1. 인스타그램 연결")
+    st.markdown(
+        "인스타에 **직접 올리려면** 아래 두 칸만 채우면 됩니다. "
+        "설치·설정 파일(`.env`)은 **필요 없어요.**"
+    )
+
+    token_in = st.text_input(
+        "연결 키1 (토큰)",
+        value=ss.ig_token,
+        type="password",
+        placeholder="판매자에게 받은 긴 글 붙여 넣기",
+        help="비밀번호처럼 긴 연결 글입니다.",
+        key="settings_ig_token",
+    )
+    uid_in = st.text_input(
+        "연결 키2 (계정번호)",
+        value=ss.ig_user_id,
+        placeholder="판매자에게 받은 숫자",
+        help="숫자로 된 계정 번호입니다.",
+        key="settings_ig_user_id",
+    )
+
+    with st.expander("어떻게 받나요?", expanded=False):
+        _render_how_to_get_keys()
+
+    c_save, c_clear = st.columns(2)
+    with c_save:
+        if st.button("저장·연결", type="primary", use_container_width=True, key="btn_ig_save"):
+            ss.ig_token = (token_in or "").strip()
+            ss.ig_user_id = (uid_in or "").strip()
+            _persist_ig_uid_to_query()
+            if _ig_connected():
+                st.success("연결됐어요. 이제 카드를 만들고 올릴 수 있어요.")
+            else:
+                st.warning("연결 키1·키2를 모두 넣어 주세요.")
+    with c_clear:
+        if st.button("연결 끊기", use_container_width=True, key="btn_ig_clear"):
+            ss.ig_token = ""
+            ss.ig_user_id = ""
+            try:
+                if "ig_uid" in st.query_params:
+                    del st.query_params["ig_uid"]
+            except Exception:
+                pass
+            st.info("연결을 해제했어요.")
+            st.rerun()
+
+    if _ig_connected():
+        st.success(_ig_status_label())
+    else:
+        st.info("연결 전에도 **카드 만들기·미리보기**는 가능해요.")
+
+    st.divider()
+    st.caption("이 브라우저 창을 쓰는 동안만 기억해요. 다른 사람과 키를 공유하지 마세요.")
+
+
+def _render_help_panel() -> None:
+    """앱 안 Help: md 파일을 열라고 하지 않음."""
+    st.markdown("### ❓ 도움말")
+    tab_use, tab_ig, tab_faq = st.tabs(["사용법", "인스타 연결", "자주 묻는 질문"])
+
+    with tab_use:
+        st.markdown(
+            """
+**한 줄 흐름:** 설정에서 인스타 연결(선택) → 콘셉트 → 글 붙여넣기 → 카드 만들기 → (선택) 올리기
+
+1. (선택) 왼쪽 **설정**에서 연결 키1·키2를 저장합니다.
+2. **콘셉트(업종)** 버튼을 고릅니다. (카페, 학원, 식당…)
+3. 큰 칸에 **글을 붙여 넣습니다.**
+4. **카드 만들기**를 누릅니다 → 아래에 미리보기가 나옵니다.
+5. (선택) **인스타에 올리기**
+   - **연습** = 실제로 안 올림
+   - **실제로 올리기** = 설정에 저장한 키로 게시
+
+**팁**
+- 글은 `1. 2. 3.` 처럼 짧은 문장으로 나누면 슬라이드가 잘 나뉩니다.
+- 주제·타겟·스타일은 기본으로 잡혀 있어요. 바꾸고 싶을 때만 **자세히**를 엽니다.
+- 설치·폴더·`.env` 파일은 신경 쓰지 마세요.
+"""
+        )
+
+    with tab_ig:
+        st.markdown(
+            """
+**구매자:** 판매자에게 **연결 키1(토큰)** / **연결 키2(계정번호)** 를 받아  
+왼쪽 **설정**에 붙여 넣고 **저장·연결**만 하면 됩니다.
+
+"""
+        )
+        _render_how_to_get_keys()
+        st.markdown(
+            """
+**연결 상태**는 설정 맨 위에 ✅ / ⚪ 로 보여요.  
+키를 바꿔야 하면 다시 붙여 넣고 저장하거나, **연결 끊기** 후 새로 넣으세요.
+"""
+        )
+
+    with tab_faq:
+        st.markdown(
+            """
+**Q. `.env` 파일을 만들어야 하나요?**  
+A. 아니요. 일반 사용은 **설정** 화면의 연결 키만 있으면 됩니다.
+
+**Q. 연결 안 했는데 카드를 만들 수 있나요?**  
+A. 네. 미리보기까지는 연결 없이 됩니다. 올릴 때만 설정 연결이 필요합니다.
+
+**Q. 배경 사진 비용이 나가나요?**  
+A. 아니요. **무료 이미지 소스**를 씁니다. (비용 없음)
+
+**Q. 연습과 실제로 올리기의 차이는?**  
+A. 연습은 서버에 올리기만 시뮬레이션하고 인스타에는 안 올라갑니다.  
+실제로 올리기는 설정에 저장된 키로 게시합니다.
+
+**Q. 키가 만료됐어요 / 권한 오류가 나요.**  
+A. 판매자에게 키 재발급을 요청한 뒤 설정에 다시 저장하세요.  
+테스터 수락·비즈니스/크리에이터 계정 여부도 함께 확인해 달라고 하세요.
+
+**Q. 문제가 나면?**  
+A. 화면 메시지를 캡처해 판매자에게 보내 주세요.
+"""
+        )
+
+
 _load_ig_from_query()
 
+# ── 사이드바: 설정 + 도움말 (항상 보임) ───────────────────
+with st.sidebar:
+    _render_settings_panel()
+    st.divider()
+    _render_help_panel()
+
+# ── 본문 ─────────────────────────────────────────────────
 st.title("📰 인스타 카드뉴스")
 st.caption("콘셉트 고르기 → 글 붙여넣기 → 카드 만들기 → (선택) 인스타에 올리기")
+
+status_cols = st.columns([3, 1])
+with status_cols[0]:
+    if _ig_connected():
+        st.success(f"인스타 {_ig_status_label()} · 설정에서 변경 가능")
+    else:
+        st.info("인스타 연결은 **선택**이에요. 왼쪽 설정에서 언제든 연결할 수 있어요.")
+with status_cols[1]:
+    st.caption("설정·도움말 →")
 
 # ── 1. 콘셉트 ───────────────────────────────────────────
 st.subheader("1. 콘셉트 고르기")
@@ -86,7 +279,6 @@ for i, cid in enumerate(CONCEPT_IDS):
             use_container_width=True,
         ):
             ss.concept_id = cid
-            # refresh sample source key on concept change
             sample_key = f"source_{cid}"
             if sample_key not in ss:
                 ss[sample_key] = sample_source(cid)
@@ -131,7 +323,6 @@ with st.expander("자세히 (주제·타겟·스타일)", expanded=False):
         )
     st.caption("기본값은 콘셉트에 맞춰 자동으로 잡혀 있어요. 필요할 때만 바꾸세요.")
 
-# defaults when expander not opened yet — widgets still exist after first run
 topic = ss.get("adv_topic", topics[0])
 audience = ss.get("adv_audience", audiences[0])
 style_id = ss.get("adv_style", "style.clean")
@@ -177,7 +368,6 @@ if paths:
         f"**미리보기** · {meta.get('concept_label', '')} · "
         f"{meta.get('topic', '')} · {meta.get('audience', '')}"
     )
-    # carousel-like: one row scrolling via columns
     n = len(paths)
     cols = st.columns(min(n, 4))
     for i, p in enumerate(paths):
@@ -189,46 +379,17 @@ if paths:
 
     caption = st.text_area("캡션 (인스타 올릴 때 사용)", value=meta.get("caption", ""), height=100)
 
-    # ── 4. 인스타 올리기 ─────────────────────────────────
+    # ── 4. 인스타 올리기 (설정 자격 증명 사용) ───────────
     st.subheader("4. 인스타에 올리기 (선택)")
 
-    token_ui = (ss.ig_token or "").strip()
-    uid_ui = (ss.ig_user_id or "").strip()
-    creds_ok = has_ig_credentials(token_ui, uid_ui)
-
-    if not creds_ok:
-        st.info(
-            "인스타에 직접 올리려면 아래 **연결 키** 두 칸만 붙여 넣으면 됩니다. "
-            "연결 키는 판매자 안내에 따라 받으세요. (설치·설정 파일 필요 없음)"
-        )
-        with st.container(border=True):
-            st.markdown("**인스타 간단 연결**")
-            ss.ig_token = st.text_input(
-                "연결 키 1 (비밀번호처럼 긴 글)",
-                value=ss.ig_token,
-                type="password",
-                placeholder="판매자에게 받은 연결 키를 붙여 넣기",
-            )
-            ss.ig_user_id = st.text_input(
-                "연결 키 2 (숫자)",
-                value=ss.ig_user_id,
-                placeholder="판매자에게 받은 숫자 키",
-            )
-            st.caption("이 창을 닫기 전까지만 기억해요. 다른 사람에게 공유하지 마세요.")
-            if st.button("연결하기", use_container_width=True):
-                if has_ig_credentials(ss.ig_token, ss.ig_user_id):
-                    st.success("연결됐어요 — 아래에서 올릴 수 있어요.")
-                    st.rerun()
-                else:
-                    st.warning("연결 키 1·2를 모두 넣어 주세요.")
+    if _ig_connected():
+        st.success(f"설정 연결 사용 중 · {_ig_status_label()}")
     else:
-        t, u = resolve_ig_credentials(token_ui, uid_ui)
-        masked = ("…" + u[-4:]) if len(u) >= 4 else "연결됨"
-        st.success(f"인스타 연결됨 {masked}")
-        if st.button("연결 끊기"):
-            ss.ig_token = ""
-            ss.ig_user_id = ""
-            st.rerun()
+        st.warning(
+            "아직 인스타가 연결되지 않았어요. "
+            "**실제로 올리기**를 쓰려면 왼쪽 **설정**에서 연결 키1·키2를 저장해 주세요. "
+            "연습은 연결 없이 가능합니다."
+        )
 
     mode = st.radio(
         "올리기 방식",
@@ -242,7 +403,11 @@ if paths:
 
     if st.button("인스타에 올리기", type="primary", use_container_width=True):
         if do_real and not has_ig_credentials(token_now, uid_now):
-            st.error("실제 올리려면 위에서 인스타 연결이 필요해요.")
+            st.error(
+                "실제 올리려면 왼쪽 **설정**에서 인스타 연결(연결 키1·키2 저장)이 필요해요. "
+                "설정 패널을 열어 키를 붙여 넣은 뒤 다시 눌러 주세요."
+            )
+            ss.open_settings = True
         else:
             with st.spinner("처리 중…"):
                 result = publish_carousel(
@@ -264,3 +429,4 @@ else:
 
 st.divider()
 st.caption("카드 미리보기만 해도 돼요. 인스타 올리기는 선택 사항입니다.")
+st.caption("📷 배경 사진은 무료 이미지 소스 사용 (비용 없음).")
