@@ -25,6 +25,7 @@ from src.auth import (
     update_buyer_note,
     verify_admin_gate,
 )
+from src.quota import set_daily_limit, usage_summary_for_admin
 from src.email_otp import (
     can_send_email,
     clear_otp_session,
@@ -221,7 +222,7 @@ Secrets 필수 (App settings → Secrets):
 
     st.divider()
     st.subheader("구매자 목록")
-    st.caption("표시: 아이디 · 사용 여부 · 메모만 (비밀번호·해시 비표시)")
+    st.caption("표시: 아이디 · 사용 여부 · 메모 · 오늘 발행 한도/사용량 (비밀번호·해시·IG키 비표시)")
 
     rows = list_buyers_rows()
     if not rows:
@@ -239,9 +240,27 @@ Secrets 필수 (App settings → Secrets):
                 st.write(f"**아이디:** `{u}`")
                 st.write(f"**사용:** {'사용 중' if enabled else '중지'}")
                 st.write(f"**메모:** {note or '(없음)'}")
+                usage = usage_summary_for_admin(u)
+                st.write(
+                    f"**오늘 발행(서울):** {usage['used']} / {usage['limit']}회 "
+                    f"(남음 {usage['remaining']}) · 기준일 {usage['date']}"
+                )
                 note_in = st.text_input("메모 수정", value=note, key=f"note_{u}")
                 if st.button("메모 저장", key=f"save_note_{u}"):
                     ok, msg = update_buyer_note(u, note_in)
+                    (st.success if ok else st.error)(msg)
+                    if ok:
+                        st.rerun()
+                lim_in = st.number_input(
+                    "하루 발행 한도",
+                    min_value=0,
+                    max_value=100,
+                    value=int(usage["limit"]),
+                    step=1,
+                    key=f"lim_{u}",
+                )
+                if st.button("한도 저장", key=f"save_lim_{u}"):
+                    ok, msg = set_daily_limit(u, int(lim_in))
                     (st.success if ok else st.error)(msg)
                     if ok:
                         st.rerun()
