@@ -248,6 +248,21 @@ def _wrap_to_width(
     return lines
 
 
+
+def _hard_split_cover_hook(text: str) -> list[str]:
+    """Cover hook only: hard-break after sentence/clause punctuation into segments.
+
+    Always split *after* `.` `。` `!` `?` `！` `？` and `,` `，` `、`.
+    Trim spaces; drop empty segments. Width-wrap still applied per segment.
+    """
+    raw = (text or "").strip()
+    if not raw:
+        return []
+    # Keep punctuation with the preceding clause; allow optional trailing spaces.
+    parts = re.split(r"(?<=[.。!?！？,，、])\s*", raw)
+    return [p.strip() for p in parts if p and p.strip()]
+
+
 def _looks_cjk_heavy(s: str) -> bool:
     cjk = sum(1 for ch in s if "\uac00" <= ch <= "\ud7a3" or "\u3040" <= ch <= "\u30ff" or "\u4e00" <= ch <= "\u9fff")
     return cjk >= max(1, len(s) // 3)
@@ -849,9 +864,14 @@ def render_slide(slide: dict[str, Any], photo: Image.Image | None = None) -> Ima
                 pad_y=8,
             )
 
-        # Large hook in lower third, center-aligned (metric wrap)
+        # Large hook in lower third, center-aligned (metric wrap).
+        # Cover-only: hard-split after .。!?！？ and ,，、 before width wrap.
         y = BODY_TEXT_TOP
-        hook_lines = _wrap_to_width(slide.get("title", ""), font_hook, TEXT_MAX_WIDTH, draw)[:3]
+        hook_segments = _hard_split_cover_hook(str(slide.get("title", "")))
+        hook_lines: list[str] = []
+        for seg in hook_segments:
+            hook_lines.extend(_wrap_to_width(seg, font_hook, TEXT_MAX_WIDTH, draw))
+        hook_lines = hook_lines[:3]
         y = _draw_centered_block(
             draw, hook_lines, y, font_hook, (255, 255, 255), line_gap=14, max_lines=3
         )
