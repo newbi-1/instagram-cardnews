@@ -289,6 +289,8 @@ def merged_buyers() -> dict[str, dict[str, Any]]:
             "note": str(meta.get("note") or ""),
             "enabled": bool(meta.get("enabled", True)),
             "created_at": str(meta.get("created_at") or ""),
+            "daily_publish_limit": meta.get("daily_publish_limit", 3),
+            "quota": meta.get("quota") if isinstance(meta.get("quota"), dict) else {"date": "", "count": 0},
             "source": "file",
         }
     for u, meta in _parse_secrets_buyers().items():
@@ -346,6 +348,8 @@ def create_buyer(
         "note": (note or "").strip(),
         "enabled": True,
         "created_at": _utc_now(),
+        "daily_publish_limit": 3,
+        "quota": {"date": "", "count": 0},
     }
     if not persist:
         return True, "메모리만 (파일 저장 안 함)", record
@@ -456,6 +460,12 @@ def list_buyers_rows() -> list[dict[str, Any]]:
     """Admin listing fields only — never include password or password_hash."""
     rows = []
     for u, meta in sorted(merged_buyers().items()):
+        # Quota fields may live only on file buyers; secrets-only get defaults via quota module
+        try:
+            lim = int(meta.get("daily_publish_limit", 3))
+        except (TypeError, ValueError):
+            lim = 3
+        quota = meta.get("quota") if isinstance(meta.get("quota"), dict) else {}
         rows.append(
             {
                 "username": u,
@@ -463,6 +473,9 @@ def list_buyers_rows() -> list[dict[str, Any]]:
                 "enabled": bool(meta.get("enabled", True)),
                 "source": meta.get("source") or "",
                 "created_at": meta.get("created_at") or "",
+                "daily_publish_limit": lim,
+                "quota_date": str(quota.get("date") or ""),
+                "quota_count": int(quota.get("count") or 0) if str(quota.get("count") or "0").isdigit() or isinstance(quota.get("count"), int) else 0,
             }
         )
     return rows
