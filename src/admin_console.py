@@ -1,7 +1,8 @@
 """Admin console UI — username+password account login + buyer management.
 
 Used by:
-- pages/관리자.py (visible sidebar Admin entry)
+- pages/admin.py (sidebar Admin entry; English path for Cloud)
+- app_simple.py login tabs (구매자 / 관리자)
 - app_simple.py optional ?gate= shortcut when ADMIN_GATE is set
 """
 
@@ -33,7 +34,7 @@ from src.email_otp import (
     verify_otp_code,
 )
 
-ADMIN_PAGE_HINT = "사이드바 **관리자** 페이지 (또는 /관리자)"
+ADMIN_PAGE_HINT = "메인 **관리자 로그인** 탭 또는 사이드바 **admin** (`pages/admin.py`)"
 
 
 def query_gate() -> str:
@@ -85,9 +86,9 @@ def render_admin_console() -> None:
             f"""
 **구매자 URL** (공유 OK): `https://YOURAPP.streamlit.app/`
 
-**관리자** (공개 페이지 · 로그인 필요):
-- Cloud/로컬: 사이드바 **관리자** 메뉴
-- 또는 앱 URL의 **관리자** multipage
+**관리자** (로그인 필요):
+- 메인 화면 상단 **관리자 로그인** 탭
+- Cloud/로컬: 사이드바 **admin** (페이지 제목: 관리자)
 
 Secrets 필수 (App settings → Secrets):
 - `ADMIN_USERNAME` — 관리자 아이디
@@ -296,6 +297,6 @@ Secrets 필수 (App settings → Secrets):
 
     st.divider()
     st.caption(
-        "구매자 화면(메인)에는 관리자 링크를 넣지 않았습니다. "
-        f"{ADMIN_PAGE_HINT} 에서 로그인하세요."
+        "다음에 관리자 들어가기: "
+        f"{ADMIN_PAGE_HINT}"
     )

@@ -3,7 +3,7 @@
 한국어 인스타그램 카드뉴스 생성 도구입니다. KPI는 **조회수**입니다.  
 구매자는 **웹 링크만** 열고: **로그인** → (선택) 설정에서 인스타 연결·고정 캡션 → 콘셉트 → **주제** → **자동으로 카드 만들기**(무료 구글 뉴스 RSS) → 미리보기 → (선택) 올리기.
 
-판매자는 사이드바 **관리자** 페이지에서 아이디/비밀번호로 로그인합니다. 계정은 Streamlit Secrets(`ADMIN_USERNAME` / `ADMIN_PASSWORD`)에만 둡니다. (선택) 예전 `?gate=` 바로가기·이메일 OTP는 기본 off.
+판매자는 메인 화면 **관리자 로그인** 탭(또는 사이드바 **admin**)에서 아이디/비밀번호로 로그인합니다. 계정은 Streamlit Secrets(`ADMIN_USERNAME` / `ADMIN_PASSWORD`)에만 둡니다. (선택) 예전 `?gate=` 바로가기·이메일 OTP는 기본 off.
 
 ## 구매자 UX (앱 안)
 
@@ -20,25 +20,24 @@
 | 역할 | 진입 | 인증 |
 |---|---|---|
 | 구매자 | `app_simple.py` (배포 Main file) | 판매자가 만든 아이디/비밀번호 **필수** |
-| 관리자(판매자) | 사이드바 **관리자** (`pages/관리자.py`) | Secrets의 `ADMIN_USERNAME` + `ADMIN_PASSWORD` (또는 해시) |
+| 관리자(판매자) | 메인 **관리자 로그인** 탭 또는 사이드바 **admin** (`pages/admin.py`) | Secrets의 `ADMIN_USERNAME` + `ADMIN_PASSWORD` (또는 해시) |
 
 **관리자 열기 (Cloud)**
 
-1. 앱 URL 열기 → 왼쪽 사이드바 **관리자**
+1. 앱 URL 열기 → 상단 **관리자 로그인** 탭 (또는 사이드바 **admin**)
 2. Secrets에 넣은 아이디/비밀번호로 로그인
 
 ```text
-https://YOURAPP.streamlit.app/   → 사이드바「관리자」
+https://YOURAPP.streamlit.app/   → 「관리자 로그인」탭 또는 사이드바 admin
 ```
 
-- 구매자: 같은 메인 URL에서 구매자 계정으로 로그인 (관리자 계정과 별개)
+- 구매자: 같은 메인 URL에서 **구매자 로그인** 탭 사용 (관리자 계정과 별개)
 - (선택) `ADMIN_GATE` 가 있으면 `?gate=` 바로가기도 동작 (필수 아님)
 - (선택) `ADMIN_OTP_ENABLED=1` 일 때만 이메일 OTP
 
 - 로컬 계정 저장: `data/buyers.json` (**깃 제외**)
 - Streamlit Cloud Secrets: `ADMIN_USERNAME` + `ADMIN_PASSWORD` + `[buyers.아이디]` (+ 선택 `IG_*`). 예: `.streamlit/secrets.toml.example`
 - 실비밀번호·실아이디는 **Secrets / gitignored secrets.toml 에만** — README·커밋·예시에 넣지 마세요.
-- 구매자 화면에는 관리자 링크를 넣지 않습니다.
 
 ## 안내서 (판매자 백업)
 

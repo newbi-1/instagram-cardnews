@@ -9,7 +9,9 @@ from dotenv import load_dotenv
 
 from src.admin_console import query_gate, render_admin_console, show_not_found
 from src.auth import (
+    admin_account_configured,
     admin_gate_configured,
+    authenticate_admin,
     authenticate_buyer,
     merged_buyers,
     verify_admin_gate,
@@ -50,7 +52,7 @@ st.set_page_config(
     layout="centered",
 )
 
-# ── Optional admin gate shortcut (?gate=). Primary admin: sidebar 관리자 page. ──
+# ── Optional admin gate shortcut (?gate=). Primary admin: login tabs + pages/admin.py. ──
 _gate_param = query_gate()
 if _gate_param:
     # Optional legacy: matching gate opens admin on main URL. Wrong gate → not found.
@@ -78,6 +80,7 @@ ss.setdefault("last_news_titles", [])
 ss.setdefault("last_source", "")
 ss.setdefault("buyer_user", "")
 ss.setdefault("buyer_authenticated", False)
+ss.setdefault("admin_ok", False)
 
 
 def _chip_index(options: list[str], value: str, fallback: int = 0) -> int:
@@ -377,37 +380,70 @@ A. 화면 메시지를 캡처해 판매자에게 보내 주세요. (키 전체�
 _clear_ig_from_url()
 
 
-def _render_buyer_login() -> None:
-    """구매자 로그인 — 통과 전에는 카드 기능 비표시."""
+def _render_login_screen() -> None:
+    """구매자 / 관리자 로그인 탭 — 통과 전에는 카드 기능 비표시."""
     st.title("📰 인스타 카드뉴스")
-    st.caption("판매자에게 받은 아이디·비밀번호로 로그인해 주세요.")
-    with st.form("buyer_login_form"):
-        uid = st.text_input("아이디", placeholder="판매자에게 받은 아이디")
-        pw = st.text_input("비밀번호", type="password", placeholder="비밀번호")
-        ok = st.form_submit_button("로그인", type="primary", use_container_width=True)
-    if ok:
-        good, msg = authenticate_buyer(uid or "", pw or "")
-        if good:
-            ss.buyer_authenticated = True
-            ss.buyer_user = (uid or "").strip()
-            st.success("로그인됐어요.")
-            st.rerun()
+    tab_buyer, tab_admin = st.tabs(["구매자 로그인", "관리자 로그인"])
+
+    with tab_buyer:
+        st.caption("판매자에게 받은 아이디·비밀번호로 로그인해 주세요.")
+        st.caption("관리자면 위쪽 관리자 로그인 탭을 누르세요.")
+        with st.form("buyer_login_form"):
+            uid = st.text_input("아이디", placeholder="판매자에게 받은 아이디")
+            pw = st.text_input("비밀번호", type="password", placeholder="비밀번호")
+            ok = st.form_submit_button("로그인", type="primary", use_container_width=True)
+        if ok:
+            good, msg = authenticate_buyer(uid or "", pw or "")
+            if good:
+                ss.buyer_authenticated = True
+                ss.buyer_user = (uid or "").strip()
+                st.success("로그인됐어요.")
+                st.rerun()
+            else:
+                st.error(msg)
+        st.divider()
+        st.caption("계정이 없으면 판매자에게 문의해 주세요.")
+        if not merged_buyers():
+            st.info("아직 등록된 구매자 계정이 없어요. 판매자에게 계정 발급을 요청해 주세요.")
+
+    with tab_admin:
+        st.caption("판매자 전용 · Secrets의 관리자 아이디/비밀번호로 로그인합니다.")
+        if not admin_account_configured():
+            st.error(
+                "관리자 계정이 없어요. Streamlit Secrets에 "
+                "`ADMIN_USERNAME` 과 `ADMIN_PASSWORD`(또는 `ADMIN_PASSWORD_HASH`) 를 넣어 주세요."
+            )
         else:
-            st.error(msg)
-    st.divider()
-    st.caption("계정이 없으면 판매자에게 문의해 주세요.")
-    if not merged_buyers():
-        st.info("아직 등록된 구매자 계정이 없어요. 판매자에게 계정 발급을 요청해 주세요.")
+            with st.form("admin_login_main_form"):
+                admin_id = st.text_input(
+                    "아이디", key="admin_main_id", autocomplete="username"
+                )
+                admin_pw = st.text_input(
+                    "비밀번호",
+                    type="password",
+                    key="admin_main_pw",
+                    autocomplete="current-password",
+                )
+                admin_ok_btn = st.form_submit_button(
+                    "관리자 로그인", type="primary", use_container_width=True
+                )
+            if admin_ok_btn:
+                if authenticate_admin(admin_id or "", admin_pw or ""):
+                    ss.admin_ok = True
+                    ss.admin_flash = "로그인 완료."
+                    st.rerun()
+                else:
+                    st.error("아이디 또는 비밀번호가 올바르지 않아요.")
+        st.caption("사이드바 **admin**(관리자) 페이지로도 들어갈 수 있어요.")
 
 
-def _require_buyer() -> bool:
-    if ss.buyer_authenticated and ss.buyer_user:
-        return True
-    _render_buyer_login()
-    return False
+# Admin session: show console on main URL (also available via pages/admin.py)
+if ss.get("admin_ok"):
+    render_admin_console()
+    st.stop()
 
-
-if not _require_buyer():
+if not (ss.buyer_authenticated and ss.buyer_user):
+    _render_login_screen()
     st.stop()
 
 # ── 사이드바: 설정 + 도움말 (항상 보임) ───────────────────
