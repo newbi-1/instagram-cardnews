@@ -651,6 +651,7 @@ def build_slide_plan(
     style_id: str,
     profile_name: str = "",
     concept_id: str | None = None,
+    closing_greeting: str = "",
 ) -> list[dict[str, Any]]:
     """5~8장 슬라이드 플랜 — cover + measured body continuations + CTA."""
     style = STYLES.get(style_id, STYLES["style.clean"])
@@ -658,6 +659,11 @@ def build_slide_plan(
     bodies = _split_source(source, max_slides=MAX_TOTAL_SLIDES, min_slides=MIN_TOTAL_SLIDES)
     hook = cover_hook(topic, audience, concept_id=cid)
     cta = cta_copy(audience, topic, concept_id=cid)
+    greet = (closing_greeting or "").strip()
+    if greet:
+        body = (cta.get("body") or "").rstrip()
+        if greet not in body:
+            cta["body"] = (body + "\n" + greet).strip() if body else greet
 
     plan: list[dict[str, Any]] = []
     plan.append(
@@ -1020,13 +1026,20 @@ def generate_cardnews(
     profile_name: str = "",
     run_id: str | None = None,
     concept_id: str | None = None,
+    closing_greeting: str = "",
 ) -> list[Path]:
     """슬라이드 생성 후 PNG 경로 리스트 반환. 슬라이드마다 다른 배경 이미지."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     cid = normalize_concept_id(concept_id) if concept_id else None
     plan = build_slide_plan(
-        topic, audience, source, style_id, profile_name, concept_id=cid
+        topic,
+        audience,
+        source,
+        style_id,
+        profile_name,
+        concept_id=cid,
+        closing_greeting=closing_greeting,
     )
     style = STYLES.get(style_id, STYLES["style.clean"])
     run_id = run_id or datetime.now().strftime("%Y%m%d_%H%M%S")
